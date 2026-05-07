@@ -26,6 +26,13 @@ type AttendanceSession = {
   is_active: boolean;
 };
 
+type ClaimResult = {
+  status: string;
+  message: string;
+  linked_member_id: string | null;
+  linked_member_name: string | null;
+};
+
 function Badge({
   children,
   tone = "slate",
@@ -59,14 +66,34 @@ function statusTone(status: string): "green" | "orange" | "red" | "blue" | "slat
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
+  const [linkedMember, setLinkedMember] = useState<Member | null>(null);
+
   const [members, setMembers] = useState<Member[]>([]);
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
   const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "scanner">("dashboard");
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
-  const [email, setEmail] = useState("admin@gbitd.org");
-  const [password, setPassword] = useState("");
+  const [loginEmail, setLoginEmail] = useState("admin@gbitd.org");
+  const [loginPassword, setLoginPassword] = useState("");
+
+  const [signupName, setSignupName] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+
+  const [claimPhone, setClaimPhone] = useState("");
+  const [claimCode, setClaimCode] = useState("");
+  const [claimName, setClaimName] = useState("");
+
+  const [profileForm, setProfileForm] = useState({
+    nickname: "",
+    phone: "",
+    email: "",
+    birth_date: "",
+    gender: "unknown",
+    address: "",
+  });
 
   const [newMember, setNewMember] = useState({
     full_name: "",
@@ -75,7 +102,10 @@ export default function Home() {
   });
 
   const [selectedSessionId, setSelectedSessionId] = useState("");
-  const [qrInput, setQrInput] = useState("MEMBER-GBITD-000123");
+  const [qrInput, setQrInput] = useState("BWC-00001");
+
+  const isAdmin = roles.includes("admin");
+  const isUsher = roles.includes("usher") || isAdmin;
 
   const activeMembers = useMemo(() => {
     return members.filter((member) => member.attendance_status === "active").length;
@@ -106,17 +136,24 @@ export default function Home() {
     if (!session) return;
 
     fetchRoles();
+    fetchLinkedMember();
+  }, [session]);
+
+  useEffect(() => {
+    if (!session) return;
+    if (!isAdmin && !isUsher) return;
+
     fetchMembers();
     fetchAttendanceSessions();
-  }, [session]);
+  }, [session, roles.join("|")]);
 
   async function login(e: React.FormEvent) {
     e.preventDefault();
     setMessage("");
 
     const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+      email: loginEmail,
+      password: loginPassword,
     });
 
     if (error) {
@@ -127,12 +164,66 @@ export default function Home() {
     setMessage("Login berhasil.");
   }
 
+  async function signUp(e: React.FormEvent) {
+    e.preventDefault();
+    setMessage("");
+
+    if (!signupName.trim()) {
+      setMessage("Nama lengkap wajib diisi.");
+      return;
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email: signupEmail,
+      password: signupPassword,
+      options: {
+        data: {
+          full_name: signupName,
+        },
+      },
+    });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    if (!data.session) {
+      setMessage("Akun berhasil dibuat. Cek email untuk konfirmasi, lalu login.");
+      setAuthMode("login");
+      setLoginEmail(signupEmail);
+      return;
+    }
+
+    setMessage("Akun berhasil dibuat. Silakan claim profile kamu.");
+  }
+
+
+  async function signInWithGoogle() {
+    setMessage("");
+
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: origin,
+      },
+    });
+
+    if (error) {
+      setMessage(error.message);
+    }
+  }
+
   async function logout() {
     await supabase.auth.signOut();
     setSession(null);
     setRoles([]);
+    setLinkedMember(null);
     setMembers([]);
     setAttendanceSessions([]);
+    setMessage("");
   }
 
   async function fetchRoles() {
@@ -149,6 +240,96 @@ export default function Home() {
     }
 
     setRoles((data || []).map((item) => item.role));
+  }
+
+  async function fetchLinkedMember() {
+    if (!session) return;
+
+    const { data, error } = await supabase
+      .from("members")
+      .select("id, member_code, qr_code_value, full_name, nickname, phone, email, membership_status, attendance_status, joined_at, created_at")
+      .eq("profile_user_id", session.user.id)
+      .maybeSingle();
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setLinkedMember(data);
+
+    if (data) {
+      setProfileForm({
+        nickname: data.nickname || "",
+        phone: data.phone || "",
+        email: data.email || "",
+        birth_date: "",
+        gender: "unknown",
+        address: "",
+      });
+    }
+  }
+
+  async function claimByPhone(e: React.FormEvent) {
+    e.preventDefault();
+    setMessage("");
+
+    const { data, error } = await supabase.rpc("claim_member_profile_by_phone", {
+      input_phone: claimPhone,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    const result = (Array.isArray(data) ? data[0] : data) as ClaimResult;
+    setMessage(result?.message || "Claim selesai.");
+    await fetchRoles();
+    await fetchLinkedMember();
+  }
+
+  async function claimByCode(e: React.FormEvent) {
+    e.preventDefault();
+    setMessage("");
+
+    const { data, error } = await supabase.rpc("claim_member_profile_by_code", {
+      input_member_code: claimCode,
+      input_full_name: claimName,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    const result = (Array.isArray(data) ? data[0] : data) as ClaimResult;
+    setMessage(result?.message || "Claim selesai.");
+    await fetchRoles();
+    await fetchLinkedMember();
+  }
+
+  async function updateMyProfile(e: React.FormEvent) {
+    e.preventDefault();
+    setMessage("");
+
+    const { data, error } = await supabase.rpc("update_my_member_profile", {
+      input_nickname: profileForm.nickname || null,
+      input_phone: profileForm.phone || null,
+      input_email: profileForm.email || null,
+      input_birth_date: profileForm.birth_date || null,
+      input_gender: profileForm.gender,
+      input_address: profileForm.address || null,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    const result = Array.isArray(data) ? data[0] : data;
+    setMessage(result?.message || "Data berhasil diperbarui.");
+    await fetchLinkedMember();
   }
 
   async function fetchMembers() {
@@ -194,7 +375,7 @@ export default function Home() {
       return;
     }
 
-    const code = `MEMBER-GBITD-${String(Date.now()).slice(-6)}`;
+    const code = `BWC-${String(Date.now()).slice(-6)}`;
 
     const { error } = await supabase.from("members").insert({
       member_code: code,
@@ -285,7 +466,7 @@ export default function Home() {
               Church management yang rapi, cepat, dan real-time.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-orange-50">
-              Login ke database Supabase real untuk mengelola jemaat, absensi QR, dan jadwal pelayanan.
+              Admin bisa mengelola database. Member BWC bisa daftar akun dan claim profile sendiri.
             </p>
           </section>
 
@@ -294,39 +475,281 @@ export default function Home() {
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-orange-500 text-2xl font-black text-white shadow-lg shadow-orange-100">
                 GBI
               </div>
-              <h2 className="text-3xl font-black text-slate-950">Masuk Dashboard</h2>
-              <p className="mt-2 text-sm text-slate-500">Gunakan user admin yang sudah dibuat di Supabase.</p>
+              <h2 className="text-3xl font-black text-slate-950">
+                {authMode === "login" ? "Masuk Dashboard" : "Daftar Akun Member"}
+              </h2>
+              <p className="mt-2 text-sm text-slate-500">
+                {authMode === "login"
+                  ? "Admin login atau member yang sudah daftar bisa masuk di sini."
+                  : "Buat akun dulu, lalu claim profile BWC berdasarkan nomor HP atau member code."}
+              </p>
             </div>
 
-            <form onSubmit={login} className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-bold text-slate-700">Email</label>
-                <input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm outline-none focus:border-orange-300"
-                  placeholder="admin@gbitd.org"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-bold text-slate-700">Password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm outline-none focus:border-orange-300"
-                  placeholder="Password admin Supabase"
-                />
-              </div>
-
-              {message && <div className="rounded-2xl bg-orange-50 px-4 py-3 text-sm font-bold text-orange-700">{message}</div>}
-
-              <button className="w-full rounded-2xl bg-orange-500 px-5 py-4 text-sm font-black text-white shadow-lg shadow-orange-100 transition hover:bg-orange-600">
+            <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl bg-orange-50 p-2">
+              <button
+                onClick={() => setAuthMode("login")}
+                className={`rounded-xl px-4 py-3 text-sm font-black ${authMode === "login" ? "bg-orange-500 text-white" : "text-orange-700"}`}
+              >
                 Login
               </button>
-            </form>
+              <button
+                onClick={() => setAuthMode("signup")}
+                className={`rounded-xl px-4 py-3 text-sm font-black ${authMode === "signup" ? "bg-orange-500 text-white" : "text-orange-700"}`}
+              >
+                Daftar Member
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={signInWithGoogle}
+              className="mb-4 flex w-full items-center justify-center gap-3 rounded-2xl border border-orange-100 bg-white px-5 py-4 text-sm font-black text-slate-800 shadow-sm transition hover:bg-orange-50"
+            >
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-base">G</span>
+              Lanjut dengan Google
+            </button>
+
+            <div className="mb-4 flex items-center gap-3">
+              <div className="h-px flex-1 bg-orange-100" />
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">atau pakai email</span>
+              <div className="h-px flex-1 bg-orange-100" />
+            </div>
+
+            {authMode === "login" ? (
+              <form onSubmit={login} className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-slate-700">Email</label>
+                  <input
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="admin@gbitd.org"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-slate-700">Password</label>
+                  <input
+                    type="password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="Password"
+                  />
+                </div>
+
+                {message && <div className="rounded-2xl bg-orange-50 px-4 py-3 text-sm font-bold text-orange-700">{message}</div>}
+
+                <button className="w-full rounded-2xl bg-orange-500 px-5 py-4 text-sm font-black text-white shadow-lg shadow-orange-100 transition hover:bg-orange-600">
+                  Login
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={signUp} className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-slate-700">Nama Lengkap</label>
+                  <input
+                    value={signupName}
+                    onChange={(e) => setSignupName(e.target.value)}
+                    className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="Nama lengkap"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-slate-700">Email</label>
+                  <input
+                    value={signupEmail}
+                    onChange={(e) => setSignupEmail(e.target.value)}
+                    className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="email@domain.com"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-slate-700">Password</label>
+                  <input
+                    type="password"
+                    value={signupPassword}
+                    onChange={(e) => setSignupPassword(e.target.value)}
+                    className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="Minimal 6 karakter"
+                  />
+                </div>
+
+                {message && <div className="rounded-2xl bg-orange-50 px-4 py-3 text-sm font-bold text-orange-700">{message}</div>}
+
+                <button className="w-full rounded-2xl bg-orange-500 px-5 py-4 text-sm font-black text-white shadow-lg shadow-orange-100 transition hover:bg-orange-600">
+                  Buat Akun
+                </button>
+              </form>
+            )}
           </Card>
+        </div>
+      </main>
+    );
+  }
+
+  if (!isAdmin && !linkedMember) {
+    return (
+      <main className="min-h-screen bg-[#FFF9F3] p-4 text-slate-900">
+        <div className="mx-auto max-w-4xl py-8">
+          <div className="mb-6 flex items-center justify-between rounded-3xl border border-orange-100 bg-white p-4 shadow-sm">
+            <div>
+              <h1 className="text-xl font-black text-slate-950">Claim Profile BWC</h1>
+              <p className="text-sm text-slate-500">{session.user.email}</p>
+            </div>
+            <button onClick={logout} className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-bold text-slate-700">
+              Logout
+            </button>
+          </div>
+
+          {message && (
+            <div className="mb-5 rounded-3xl border border-orange-100 bg-white px-5 py-4 text-sm font-bold text-orange-700 shadow-sm">
+              {message}
+            </div>
+          )}
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <h2 className="text-2xl font-black text-slate-950">Claim dengan Nomor HP</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                Pakai nomor HP yang terdaftar di database BWC. Format bebas, contoh 0812... atau +62812...
+              </p>
+
+              <form onSubmit={claimByPhone} className="mt-5 space-y-4">
+                <input
+                  value={claimPhone}
+                  onChange={(e) => setClaimPhone(e.target.value)}
+                  className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                  placeholder="0812..."
+                />
+                <button className="w-full rounded-2xl bg-orange-500 px-4 py-4 text-sm font-black text-white">
+                  Claim Profile
+                </button>
+              </form>
+            </Card>
+
+            <Card>
+              <h2 className="text-2xl font-black text-slate-950">Tidak Punya Nomor?</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                Untuk data yang nomor HP-nya kosong, claim pakai member code dan nama lengkap sesuai database.
+              </p>
+
+              <form onSubmit={claimByCode} className="mt-5 space-y-4">
+                <input
+                  value={claimCode}
+                  onChange={(e) => setClaimCode(e.target.value)}
+                  className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm font-bold outline-none focus:border-orange-300"
+                  placeholder="BWC-00001"
+                />
+                <input
+                  value={claimName}
+                  onChange={(e) => setClaimName(e.target.value)}
+                  className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                  placeholder="Nama lengkap sesuai database"
+                />
+                <button className="w-full rounded-2xl bg-slate-950 px-4 py-4 text-sm font-black text-white">
+                  Claim dengan Kode
+                </button>
+              </form>
+            </Card>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!isAdmin && linkedMember) {
+    return (
+      <main className="min-h-screen bg-[#FFF9F3] p-4 text-slate-900">
+        <div className="mx-auto max-w-5xl py-8">
+          <div className="mb-6 flex items-center justify-between rounded-3xl border border-orange-100 bg-white p-4 shadow-sm">
+            <div>
+              <h1 className="text-xl font-black text-slate-950">My BWC Profile</h1>
+              <p className="text-sm text-slate-500">{session.user.email}</p>
+            </div>
+            <button onClick={logout} className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-bold text-slate-700">
+              Logout
+            </button>
+          </div>
+
+          {message && (
+            <div className="mb-5 rounded-3xl border border-orange-100 bg-white px-5 py-4 text-sm font-bold text-orange-700 shadow-sm">
+              {message}
+            </div>
+          )}
+
+          <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
+            <Card>
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">Profile Connected</p>
+              <h2 className="mt-3 text-3xl font-black text-slate-950">{linkedMember.full_name}</h2>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl bg-orange-50 p-4">
+                  <p className="text-xs font-bold text-orange-700">Member Code</p>
+                  <p className="mt-1 text-lg font-black text-slate-950">{linkedMember.member_code}</p>
+                </div>
+                <div className="rounded-2xl bg-orange-50 p-4">
+                  <p className="text-xs font-bold text-orange-700">QR Value</p>
+                  <p className="mt-1 text-lg font-black text-slate-950">{linkedMember.qr_code_value}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs font-bold text-slate-500">Phone</p>
+                  <p className="mt-1 text-lg font-black text-slate-950">{linkedMember.phone || "-"}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs font-bold text-slate-500">Status</p>
+                  <p className="mt-1"><Badge tone={statusTone(linkedMember.attendance_status)}>{linkedMember.attendance_status}</Badge></p>
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <h3 className="text-xl font-black text-slate-950">Update Data Pribadi</h3>
+              <form onSubmit={updateMyProfile} className="mt-5 space-y-3">
+                <input
+                  value={profileForm.nickname}
+                  onChange={(e) => setProfileForm({ ...profileForm, nickname: e.target.value })}
+                  className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                  placeholder="Nama panggilan"
+                />
+                <input
+                  value={profileForm.phone}
+                  onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                  className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                  placeholder="Nomor WhatsApp"
+                />
+                <input
+                  value={profileForm.email}
+                  onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                  className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                  placeholder="Email"
+                />
+                <input
+                  type="date"
+                  value={profileForm.birth_date}
+                  onChange={(e) => setProfileForm({ ...profileForm, birth_date: e.target.value })}
+                  className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                />
+                <select
+                  value={profileForm.gender}
+                  onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
+                  className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                >
+                  <option value="unknown">Gender</option>
+                  <option value="male">Pria</option>
+                  <option value="female">Wanita</option>
+                </select>
+                <textarea
+                  value={profileForm.address}
+                  onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
+                  className="min-h-24 w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                  placeholder="Alamat"
+                />
+                <button className="w-full rounded-2xl bg-orange-500 px-4 py-4 text-sm font-black text-white">
+                  Simpan Update
+                </button>
+              </form>
+            </Card>
+          </div>
         </div>
       </main>
     );
@@ -515,7 +938,7 @@ export default function Home() {
                       value={qrInput}
                       onChange={(e) => setQrInput(e.target.value)}
                       className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm font-bold outline-none focus:border-orange-300"
-                      placeholder="MEMBER-GBITD-000123"
+                      placeholder="BWC-00001"
                     />
                   </div>
 
@@ -530,7 +953,7 @@ export default function Home() {
                 <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-600">
                   <p>1. Pilih attendance session.</p>
                   <p>2. Masukkan QR/member code, contoh:</p>
-                  <pre className="rounded-2xl bg-slate-950 p-4 text-xs font-bold text-white">MEMBER-GBITD-000123</pre>
+                  <pre className="rounded-2xl bg-slate-950 p-4 text-xs font-bold text-white">BWC-00001</pre>
                   <p>3. Klik Check-in.</p>
                   <p>4. Cek Supabase table <b>attendance_records</b>. Data harus masuk.</p>
                   <p>5. Klik Check-in lagi dengan QR yang sama. Harus muncul pesan sudah check-in.</p>
