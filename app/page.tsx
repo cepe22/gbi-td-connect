@@ -16,6 +16,9 @@ type Member = {
   membership_status: string;
   attendance_status: string;
   joined_at: string | null;
+  birth_date: string | null;
+  gender: string | null;
+  address: string | null;
   created_at: string;
 };
 
@@ -265,7 +268,7 @@ export default function Home() {
 
     const { data, error } = await supabase
       .from("members")
-      .select("id, member_code, qr_code_value, full_name, nickname, phone, email, membership_status, attendance_status, joined_at, created_at")
+      .select("id, member_code, qr_code_value, full_name, nickname, phone, email, birth_date, gender, address, membership_status, attendance_status, joined_at, created_at")
       .eq("profile_user_id", session.user.id)
       .maybeSingle();
 
@@ -281,9 +284,9 @@ export default function Home() {
         nickname: data.nickname || "",
         phone: data.phone || "",
         email: data.email || "",
-        birth_date: "",
-        gender: "unknown",
-        address: "",
+        birth_date: data.birth_date || "",
+        gender: data.gender || "unknown",
+        address: data.address || "",
       });
     }
   }
@@ -686,6 +689,7 @@ export default function Home() {
       </main>
     );
   }
+
 
 
   if (!isAdmin && linkedMember) {
