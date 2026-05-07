@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
+import QRCode from "qrcode";
 import { supabase } from "../lib/supabase";
 
 type Member = {
@@ -67,6 +68,7 @@ export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
   const [linkedMember, setLinkedMember] = useState<Member | null>(null);
+  const [memberQrDataUrl, setMemberQrDataUrl] = useState("");
 
   const [members, setMembers] = useState<Member[]>([]);
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
@@ -138,6 +140,21 @@ export default function Home() {
     fetchRoles();
     fetchLinkedMember();
   }, [session]);
+
+  useEffect(() => {
+    if (!linkedMember?.qr_code_value) {
+      setMemberQrDataUrl("");
+      return;
+    }
+
+    QRCode.toDataURL(linkedMember.qr_code_value, {
+      width: 320,
+      margin: 2,
+      errorCorrectionLevel: "M",
+    })
+      .then(setMemberQrDataUrl)
+      .catch(() => setMemberQrDataUrl(""));
+  }, [linkedMember?.qr_code_value]);
 
   useEffect(() => {
     if (!session) return;
@@ -307,6 +324,17 @@ export default function Home() {
     setMessage(result?.message || "Claim selesai.");
     await fetchRoles();
     await fetchLinkedMember();
+  }
+
+  function downloadMyQr() {
+    if (!memberQrDataUrl || !linkedMember) return;
+
+    const link = document.createElement("a");
+    link.href = memberQrDataUrl;
+    link.download = `${linkedMember.member_code}-qr.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   async function updateMyProfile(e: React.FormEvent) {
@@ -682,22 +710,54 @@ export default function Home() {
             <Card>
               <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">Profile Connected</p>
               <h2 className="mt-3 text-3xl font-black text-slate-950">{linkedMember.full_name}</h2>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl bg-orange-50 p-4">
-                  <p className="text-xs font-bold text-orange-700">Member Code</p>
-                  <p className="mt-1 text-lg font-black text-slate-950">{linkedMember.member_code}</p>
+
+              <div className="mt-6 grid gap-5 xl:grid-cols-[280px_1fr]">
+                <div className="rounded-[2rem] border border-orange-100 bg-orange-50 p-5 text-center">
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-700">My Attendance QR</p>
+
+                  <div className="mt-4 rounded-3xl bg-white p-4 shadow-sm">
+                    {memberQrDataUrl ? (
+                      <img
+                        src={memberQrDataUrl}
+                        alt={`QR ${linkedMember.member_code}`}
+                        className="mx-auto h-56 w-56 rounded-2xl"
+                      />
+                    ) : (
+                      <div className="flex h-56 w-full items-center justify-center rounded-2xl bg-slate-50 text-sm font-bold text-slate-400">
+                        Generating QR...
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="mt-4 text-lg font-black text-slate-950">{linkedMember.member_code}</p>
+                  <p className="mt-1 text-xs text-slate-500">Tunjukkan QR ini ke usher saat ibadah/event.</p>
+
+                  <button
+                    type="button"
+                    onClick={downloadMyQr}
+                    className="mt-4 w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white"
+                  >
+                    Download QR
+                  </button>
                 </div>
-                <div className="rounded-2xl bg-orange-50 p-4">
-                  <p className="text-xs font-bold text-orange-700">QR Value</p>
-                  <p className="mt-1 text-lg font-black text-slate-950">{linkedMember.qr_code_value}</p>
-                </div>
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-bold text-slate-500">Phone</p>
-                  <p className="mt-1 text-lg font-black text-slate-950">{linkedMember.phone || "-"}</p>
-                </div>
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-bold text-slate-500">Status</p>
-                  <p className="mt-1"><Badge tone={statusTone(linkedMember.attendance_status)}>{linkedMember.attendance_status}</Badge></p>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl bg-orange-50 p-4">
+                    <p className="text-xs font-bold text-orange-700">Member Code</p>
+                    <p className="mt-1 text-lg font-black text-slate-950">{linkedMember.member_code}</p>
+                  </div>
+                  <div className="rounded-2xl bg-orange-50 p-4">
+                    <p className="text-xs font-bold text-orange-700">QR Value</p>
+                    <p className="mt-1 text-lg font-black text-slate-950">{linkedMember.qr_code_value}</p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 p-4">
+                    <p className="text-xs font-bold text-slate-500">Phone</p>
+                    <p className="mt-1 text-lg font-black text-slate-950">{linkedMember.phone || "-"}</p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 p-4">
+                    <p className="text-xs font-bold text-slate-500">Status</p>
+                    <p className="mt-1"><Badge tone={statusTone(linkedMember.attendance_status)}>{linkedMember.attendance_status}</Badge></p>
+                  </div>
                 </div>
               </div>
             </Card>
