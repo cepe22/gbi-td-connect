@@ -73,6 +73,7 @@ export default function Home() {
   const [members, setMembers] = useState<Member[]>([]);
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
   const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "scanner">("dashboard");
+  const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "profile">("home");
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -686,13 +687,35 @@ export default function Home() {
     );
   }
 
+
   if (!isAdmin && linkedMember) {
+    const profileFields = [
+      linkedMember.nickname,
+      linkedMember.phone,
+      linkedMember.email,
+      profileForm.birth_date,
+      profileForm.gender !== "unknown" ? profileForm.gender : "",
+      profileForm.address,
+    ];
+
+    const completedFields = profileFields.filter(Boolean).length;
+    const profileCompletion = Math.round((completedFields / profileFields.length) * 100);
+
+    const memberNavItems = [
+      { id: "home", label: "Home", icon: "🏠" },
+      { id: "qr", label: "QR", icon: "▣" },
+      { id: "schedule", label: "Schedule", icon: "🗓️" },
+      { id: "cool", label: "COOL", icon: "🌱" },
+      { id: "profile", label: "Profile", icon: "👤" },
+    ] as const;
+
     return (
-      <main className="min-h-screen bg-[#FFF9F3] p-4 text-slate-900">
-        <div className="mx-auto max-w-5xl py-8">
-          <div className="mb-6 flex items-center justify-between rounded-3xl border border-orange-100 bg-white p-4 shadow-sm">
+      <main className="min-h-screen bg-[#FFF9F3] pb-24 text-slate-900 md:pb-6">
+        <div className="mx-auto max-w-6xl px-4 py-5 md:py-8">
+          <div className="mb-5 flex items-center justify-between rounded-3xl border border-orange-100 bg-white p-4 shadow-sm">
             <div>
-              <h1 className="text-xl font-black text-slate-950">My BWC Profile</h1>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-600">BWC Member Portal</p>
+              <h1 className="mt-1 text-xl font-black text-slate-950">{linkedMember.full_name}</h1>
               <p className="text-sm text-slate-500">{session.user.email}</p>
             </div>
             <button onClick={logout} className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-bold text-slate-700">
@@ -706,42 +729,250 @@ export default function Home() {
             </div>
           )}
 
-          <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
-            <Card>
-              <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">Profile Connected</p>
-              <h2 className="mt-3 text-3xl font-black text-slate-950">{linkedMember.full_name}</h2>
+          <div className="mb-6 hidden rounded-3xl border border-orange-100 bg-white p-2 shadow-sm md:flex">
+            {memberNavItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setMemberTab(item.id)}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-black transition ${
+                  memberTab === item.id ? "bg-orange-500 text-white shadow-lg shadow-orange-100" : "text-slate-600 hover:bg-orange-50"
+                }`}
+              >
+                <span>{item.icon}</span>
+                {item.label}
+              </button>
+            ))}
+          </div>
 
-              <div className="mt-6 grid gap-5 xl:grid-cols-[280px_1fr]">
-                <div className="rounded-[2rem] border border-orange-100 bg-orange-50 p-5 text-center">
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-700">My Attendance QR</p>
+          {memberTab === "home" && (
+            <section className="space-y-6">
+              <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+                <div className="rounded-[2rem] bg-gradient-to-br from-orange-500 to-amber-400 p-6 text-white shadow-xl shadow-orange-100">
+                  <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-100">Welcome Home</p>
+                  <h2 className="mt-4 text-3xl font-black leading-tight md:text-5xl">
+                    Halo, {linkedMember.nickname || linkedMember.full_name.split(" ")[0]} 👋
+                  </h2>
+                  <p className="mt-4 max-w-xl text-sm leading-relaxed text-orange-50">
+                    Ini adalah portal pribadi kamu untuk QR absensi, data member, jadwal pelayanan, dan informasi COOL.
+                  </p>
 
-                  <div className="mt-4 rounded-3xl bg-white p-4 shadow-sm">
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    <button
+                      onClick={() => setMemberTab("qr")}
+                      className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-orange-600 shadow-sm"
+                    >
+                      Show My QR
+                    </button>
+                    <button
+                      onClick={() => setMemberTab("profile")}
+                      className="rounded-2xl bg-white/20 px-5 py-3 text-sm font-black text-white backdrop-blur"
+                    >
+                      Lengkapi Data
+                    </button>
+                  </div>
+                </div>
+
+                <Card>
+                  <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">Profile Completion</p>
+                  <div className="mt-4 flex items-end justify-between">
+                    <p className="text-5xl font-black text-slate-950">{profileCompletion}%</p>
+                    <Badge tone={profileCompletion >= 80 ? "green" : "orange"}>
+                      {profileCompletion >= 80 ? "Good" : "Need Update"}
+                    </Badge>
+                  </div>
+                  <div className="mt-4 h-3 overflow-hidden rounded-full bg-orange-50">
+                    <div className="h-full rounded-full bg-orange-500" style={{ width: `${profileCompletion}%` }} />
+                  </div>
+                  <p className="mt-3 text-sm text-slate-500">
+                    Lengkapi data pribadi supaya pendataan BWC lebih akurat.
+                  </p>
+                </Card>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <Card>
+                  <p className="text-sm text-slate-500">Member Code</p>
+                  <p className="mt-2 text-2xl font-black text-slate-950">{linkedMember.member_code}</p>
+                </Card>
+                <Card>
+                  <p className="text-sm text-slate-500">Member Status</p>
+                  <p className="mt-3"><Badge tone={statusTone(linkedMember.attendance_status)}>{linkedMember.attendance_status}</Badge></p>
+                </Card>
+                <Card>
+                  <p className="text-sm text-slate-500">COOL / Community</p>
+                  <p className="mt-2 text-2xl font-black text-slate-950">BWC</p>
+                </Card>
+              </div>
+
+              <div className="grid gap-5 lg:grid-cols-2">
+                <Card>
+                  <h3 className="text-xl font-black text-slate-950">Next Activity</h3>
+                  <div className="mt-4 rounded-3xl bg-orange-50 p-5">
+                    <p className="text-sm font-bold text-orange-700">Ibadah / Event berikutnya</p>
+                    <p className="mt-2 text-2xl font-black text-slate-950">Belum ada jadwal aktif</p>
+                    <p className="mt-2 text-sm text-slate-500">Nanti bagian ini bisa dihubungkan ke event dan attendance sessions.</p>
+                  </div>
+                </Card>
+
+                <Card>
+                  <h3 className="text-xl font-black text-slate-950">Quick Actions</h3>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <button onClick={() => setMemberTab("qr")} className="rounded-2xl bg-orange-500 px-4 py-4 text-sm font-black text-white">
+                      Buka QR
+                    </button>
+                    <button onClick={() => setMemberTab("schedule")} className="rounded-2xl bg-slate-950 px-4 py-4 text-sm font-black text-white">
+                      Cek Pelayanan
+                    </button>
+                    <button onClick={() => setMemberTab("cool")} className="rounded-2xl border border-orange-100 bg-white px-4 py-4 text-sm font-black text-slate-700">
+                      Info COOL
+                    </button>
+                    <button onClick={() => setMemberTab("profile")} className="rounded-2xl border border-orange-100 bg-white px-4 py-4 text-sm font-black text-slate-700">
+                      Update Profile
+                    </button>
+                  </div>
+                </Card>
+              </div>
+            </section>
+          )}
+
+          {memberTab === "qr" && (
+            <section className="grid gap-6 lg:grid-cols-[420px_1fr]">
+              <Card>
+                <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">Digital Member Card</p>
+                <h2 className="mt-3 text-3xl font-black text-slate-950">My Attendance QR</h2>
+
+                <div className="mt-6 rounded-[2rem] border border-orange-100 bg-orange-50 p-5 text-center">
+                  <div className="rounded-3xl bg-white p-4 shadow-sm">
                     {memberQrDataUrl ? (
                       <img
                         src={memberQrDataUrl}
                         alt={`QR ${linkedMember.member_code}`}
-                        className="mx-auto h-56 w-56 rounded-2xl"
+                        className="mx-auto h-64 w-64 rounded-2xl"
                       />
                     ) : (
-                      <div className="flex h-56 w-full items-center justify-center rounded-2xl bg-slate-50 text-sm font-bold text-slate-400">
+                      <div className="flex h-64 w-full items-center justify-center rounded-2xl bg-slate-50 text-sm font-bold text-slate-400">
                         Generating QR...
                       </div>
                     )}
                   </div>
 
-                  <p className="mt-4 text-lg font-black text-slate-950">{linkedMember.member_code}</p>
-                  <p className="mt-1 text-xs text-slate-500">Tunjukkan QR ini ke usher saat ibadah/event.</p>
+                  <p className="mt-5 text-2xl font-black text-slate-950">{linkedMember.member_code}</p>
+                  <p className="mt-1 text-sm text-slate-500">{linkedMember.full_name}</p>
 
                   <button
                     type="button"
                     onClick={downloadMyQr}
-                    className="mt-4 w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white"
+                    className="mt-5 w-full rounded-2xl bg-slate-950 px-4 py-4 text-sm font-black text-white"
                   >
                     Download QR
                   </button>
                 </div>
+              </Card>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-5">
+                <Card>
+                  <h3 className="text-xl font-black text-slate-950">Cara Pakai QR</h3>
+                  <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-600">
+                    <p>1. Buka halaman QR saat masuk ibadah, COOL, atau event.</p>
+                    <p>2. Tunjukkan QR ke tim usher/pendataan.</p>
+                    <p>3. Tim usher scan QR kamu.</p>
+                    <p>4. Absensi otomatis masuk ke sistem.</p>
+                  </div>
+                </Card>
+
+                <Card>
+                  <h3 className="text-xl font-black text-slate-950">Member Info</h3>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl bg-orange-50 p-4">
+                      <p className="text-xs font-bold text-orange-700">QR Value</p>
+                      <p className="mt-1 text-lg font-black text-slate-950">{linkedMember.qr_code_value}</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 p-4">
+                      <p className="text-xs font-bold text-slate-500">Phone</p>
+                      <p className="mt-1 text-lg font-black text-slate-950">{linkedMember.phone || "-"}</p>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            </section>
+          )}
+
+          {memberTab === "schedule" && (
+            <section className="space-y-6">
+              <Card>
+                <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">My Schedule</p>
+                <h2 className="mt-3 text-3xl font-black text-slate-950">Jadwal Pelayanan</h2>
+                <p className="mt-2 text-sm text-slate-500">
+                  Untuk sekarang, halaman ini disiapkan sebagai tempat jadwal pelayanan pribadi.
+                </p>
+
+                <div className="mt-6 rounded-3xl border border-dashed border-orange-200 bg-orange-50 p-6 text-center">
+                  <p className="text-2xl font-black text-slate-950">Belum ada jadwal pelayanan aktif</p>
+                  <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-500">
+                    Nanti jadwal dari ketua departemen akan muncul di sini, termasuk status konfirmasi hadir dan role pelayanan.
+                  </p>
+                </div>
+              </Card>
+
+              <div className="grid gap-5 md:grid-cols-3">
+                <Card>
+                  <p className="text-sm text-slate-500">Next Service</p>
+                  <p className="mt-2 text-xl font-black text-slate-950">-</p>
+                </Card>
+                <Card>
+                  <p className="text-sm text-slate-500">Department</p>
+                  <p className="mt-2 text-xl font-black text-slate-950">-</p>
+                </Card>
+                <Card>
+                  <p className="text-sm text-slate-500">Confirmation</p>
+                  <p className="mt-2"><Badge tone="slate">No schedule</Badge></p>
+                </Card>
+              </div>
+            </section>
+          )}
+
+          {memberTab === "cool" && (
+            <section className="space-y-6">
+              <div className="rounded-[2rem] bg-gradient-to-br from-slate-950 to-slate-800 p-6 text-white shadow-xl">
+                <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-300">My COOL</p>
+                <h2 className="mt-3 text-4xl font-black">Bride Warrior Community</h2>
+                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300">
+                  BWC adalah komunitas Youth untuk bertumbuh bersama dalam iman, karakter, pelayanan, dan kehidupan sehari-hari.
+                </p>
+              </div>
+
+              <div className="grid gap-5 md:grid-cols-3">
+                <Card>
+                  <p className="text-sm text-slate-500">Generation</p>
+                  <p className="mt-2 text-2xl font-black text-slate-950">Youth</p>
+                </Card>
+                <Card>
+                  <p className="text-sm text-slate-500">Meeting Day</p>
+                  <p className="mt-2 text-2xl font-black text-slate-950">Sabtu</p>
+                </Card>
+                <Card>
+                  <p className="text-sm text-slate-500">Location</p>
+                  <p className="mt-2 text-2xl font-black text-slate-950">GBI Tanjung Duren</p>
+                </Card>
+              </div>
+
+              <Card>
+                <h3 className="text-xl font-black text-slate-950">Upcoming COOL / Event</h3>
+                <div className="mt-4 rounded-3xl bg-orange-50 p-5">
+                  <p className="font-black text-slate-950">Belum ada announcement aktif</p>
+                  <p className="mt-1 text-sm text-slate-500">Nanti bagian ini bisa dihubungkan ke event BWC dan announcement dari leader.</p>
+                </div>
+              </Card>
+            </section>
+          )}
+
+          {memberTab === "profile" && (
+            <section className="grid gap-6 lg:grid-cols-[1fr_420px]">
+              <Card>
+                <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">Profile Connected</p>
+                <h2 className="mt-3 text-3xl font-black text-slate-950">{linkedMember.full_name}</h2>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-2xl bg-orange-50 p-4">
                     <p className="text-xs font-bold text-orange-700">Member Code</p>
                     <p className="mt-1 text-lg font-black text-slate-950">{linkedMember.member_code}</p>
@@ -759,56 +990,73 @@ export default function Home() {
                     <p className="mt-1"><Badge tone={statusTone(linkedMember.attendance_status)}>{linkedMember.attendance_status}</Badge></p>
                   </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
 
-            <Card>
-              <h3 className="text-xl font-black text-slate-950">Update Data Pribadi</h3>
-              <form onSubmit={updateMyProfile} className="mt-5 space-y-3">
-                <input
-                  value={profileForm.nickname}
-                  onChange={(e) => setProfileForm({ ...profileForm, nickname: e.target.value })}
-                  className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
-                  placeholder="Nama panggilan"
-                />
-                <input
-                  value={profileForm.phone}
-                  onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
-                  className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
-                  placeholder="Nomor WhatsApp"
-                />
-                <input
-                  value={profileForm.email}
-                  onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                  className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
-                  placeholder="Email"
-                />
-                <input
-                  type="date"
-                  value={profileForm.birth_date}
-                  onChange={(e) => setProfileForm({ ...profileForm, birth_date: e.target.value })}
-                  className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
-                />
-                <select
-                  value={profileForm.gender}
-                  onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
-                  className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
-                >
-                  <option value="unknown">Gender</option>
-                  <option value="male">Pria</option>
-                  <option value="female">Wanita</option>
-                </select>
-                <textarea
-                  value={profileForm.address}
-                  onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
-                  className="min-h-24 w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
-                  placeholder="Alamat"
-                />
-                <button className="w-full rounded-2xl bg-orange-500 px-4 py-4 text-sm font-black text-white">
-                  Simpan Update
-                </button>
-              </form>
-            </Card>
+              <Card>
+                <h3 className="text-xl font-black text-slate-950">Update Data Pribadi</h3>
+                <form onSubmit={updateMyProfile} className="mt-5 space-y-3">
+                  <input
+                    value={profileForm.nickname}
+                    onChange={(e) => setProfileForm({ ...profileForm, nickname: e.target.value })}
+                    className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="Nama panggilan"
+                  />
+                  <input
+                    value={profileForm.phone}
+                    onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                    className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="Nomor WhatsApp"
+                  />
+                  <input
+                    value={profileForm.email}
+                    onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                    className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="Email"
+                  />
+                  <input
+                    type="date"
+                    value={profileForm.birth_date}
+                    onChange={(e) => setProfileForm({ ...profileForm, birth_date: e.target.value })}
+                    className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                  />
+                  <select
+                    value={profileForm.gender}
+                    onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
+                    className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                  >
+                    <option value="unknown">Gender</option>
+                    <option value="male">Pria</option>
+                    <option value="female">Wanita</option>
+                  </select>
+                  <textarea
+                    value={profileForm.address}
+                    onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
+                    className="min-h-24 w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="Alamat"
+                  />
+                  <button className="w-full rounded-2xl bg-orange-500 px-4 py-4 text-sm font-black text-white">
+                    Simpan Update
+                  </button>
+                </form>
+              </Card>
+            </section>
+          )}
+        </div>
+
+        <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-orange-100 bg-white/95 p-2 shadow-2xl backdrop-blur md:hidden">
+          <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
+            {memberNavItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setMemberTab(item.id)}
+                className={`rounded-2xl px-2 py-2 text-center text-[11px] font-black transition ${
+                  memberTab === item.id ? "bg-orange-500 text-white" : "text-slate-500"
+                }`}
+              >
+                <span className="block text-lg">{item.icon}</span>
+                {item.label}
+              </button>
+            ))}
           </div>
         </div>
       </main>
