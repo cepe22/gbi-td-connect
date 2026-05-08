@@ -13,7 +13,6 @@ import BwcMobileBottomNavV2 from "./components/BwcMobileBottomNavV2";
 import BwcMobileRuntimeLayoutFix from "./components/BwcMobileRuntimeLayoutFix";
 import BwcCoolAttendanceManager from "./components/BwcCoolAttendanceManager";
 import BwcAdminMemberDatabaseEditor from "./components/BwcAdminMemberDatabaseEditor";
-import BwcAttendanceMemberEditor from "./components/BwcAttendanceMemberEditor";
 
 type Member = {
   id: string;
@@ -337,8 +336,8 @@ export default function Home() {
   const [myCoolInfo, setMyCoolInfo] = useState<MyCoolInfo | null>(null);
   const [departmentOverview, setDepartmentOverview] = useState<DepartmentOverview[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "profileViewer" | "analytics" | "events" | "scanner" | "contacts" | "ministrySchedule" | "groupChat" | "coolAttendance" | "memberDatabase" | "attendanceMembers">("dashboard");
-  const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "analytics" | "scan" | "profile" | "contacts" | "ministrySchedule" | "groupChat" | "coolAttendance" | "memberDatabase" | "attendanceMembers">("home");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "profileViewer" | "analytics" | "events" | "scanner" | "contacts" | "ministrySchedule" | "groupChat" | "coolAttendance" | "memberDatabase">("dashboard");
+  const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "analytics" | "scan" | "profile" | "contacts" | "ministrySchedule" | "groupChat" | "coolAttendance" | "memberDatabase">("home");
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -3068,8 +3067,6 @@ const BwcAnalyticsDashboardFixed = () => {
 
           {memberTab === "home" && <BwcMemberHomeV2 onNavigate={(tab) => setMemberTab(tab as any)} />}
 
-          {memberTab === "attendanceMembers" && <BwcAttendanceMemberEditor />}
-
           {memberTab === "qr" && (
             <section className="grid gap-6 lg:grid-cols-[420px_1fr]">
               <Card>
@@ -3835,7 +3832,6 @@ const BwcAnalyticsDashboardFixed = () => {
               { id: "groupChat", label: "Group Chat", icon: "🗣️" },
               { id: "events", label: "Broadcast Event", icon: "📣" },
               { id: "scanner", label: "QR Scanner", icon: "📷" },
-              { id: "attendanceMembers", label: "Edit Member Absen", icon: "📝" },
             ].map((item) => (
               <button
                 key={item.id}
@@ -4651,8 +4647,6 @@ const BwcAnalyticsDashboardFixed = () => {
             </div>
           )}
 
-
-          {activeTab === "attendanceMembers" && <BwcAttendanceMemberEditor />}
 
           {activeTab === "scanner" && renderBwcLiveQrScanner()}
         </section>
