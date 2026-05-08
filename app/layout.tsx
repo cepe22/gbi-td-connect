@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "./mobile-first.css";
+import "./bwc-premium-mobile.css";
 import BwcHomeCompletionCleanup from "./components/BwcHomeCompletionCleanup";
 
 export const viewport = {
