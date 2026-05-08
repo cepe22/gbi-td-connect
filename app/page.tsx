@@ -27,6 +27,31 @@ type Member = {
 type BwcPost = any;
 type BwcComment = any;
 
+type MyMinistry = {
+  department_id: string;
+  department_name: string;
+  role: string;
+  source_note: string | null;
+  is_active: boolean;
+};
+
+type DepartmentMemberItem = {
+  member_id: string;
+  full_name: string;
+  member_code: string;
+  phone: string | null;
+  photo_url: string | null;
+  role: string;
+  source_note: string | null;
+};
+
+type DepartmentOverview = {
+  department_id: string;
+  department_name: string;
+  total_members: number;
+  members: DepartmentMemberItem[];
+};
+
 type AttendanceSession = {
   id: string;
   title: string;
@@ -122,7 +147,10 @@ export default function Home() {
 
   const [members, setMembers] = useState<Member[]>([]);
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "scanner">("dashboard");
+  const [myMinistries, setMyMinistries] = useState<MyMinistry[]>([]);
+  const [departmentOverview, setDepartmentOverview] = useState<DepartmentOverview[]>([]);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "scanner">("dashboard");
   const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "profile">("home");
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(true);
@@ -241,6 +269,18 @@ export default function Home() {
     fetchMembers();
     fetchAttendanceSessions();
   }, [session, roles.join("|")]);
+
+  useEffect(() => {
+    if (!session || !linkedMember) return;
+
+    fetchMyMinistries();
+  }, [session?.user.id, linkedMember?.id]);
+
+  useEffect(() => {
+    if (!session || !isAdmin) return;
+
+    fetchDepartmentOverview();
+  }, [session?.user.id, isAdmin]);
 
   async function login(e: React.FormEvent) {
     e.preventDefault();
@@ -688,6 +728,33 @@ export default function Home() {
 
     const result = Array.isArray(data) ? data[0] : data;
     setMessage(result?.message || "Data pribadi berhasil diperbarui.");
+  }
+
+  async function fetchMyMinistries() {
+    const { data, error } = await supabase.rpc("get_my_ministries");
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setMyMinistries((data || []) as MyMinistry[]);
+  }
+
+  async function fetchDepartmentOverview() {
+    const { data, error } = await supabase.rpc("get_department_overview");
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    const overview = (data || []) as DepartmentOverview[];
+    setDepartmentOverview(overview);
+
+    if (!selectedDepartmentId && overview.length > 0) {
+      setSelectedDepartmentId(overview[0].department_id);
+    }
   }
 
   async function fetchMembers() {
@@ -1231,32 +1298,54 @@ export default function Home() {
           {memberTab === "schedule" && (
             <section className="space-y-6">
               <Card>
-                <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">My Schedule</p>
-                <h2 className="mt-3 text-3xl font-black text-slate-950">Jadwal Pelayanan</h2>
+                <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">My Ministry</p>
+                <h2 className="mt-3 text-3xl font-black text-slate-950">Pelayanan Saya</h2>
                 <p className="mt-2 text-sm text-slate-500">
-                  Untuk sekarang, halaman ini disiapkan sebagai tempat jadwal pelayanan pribadi.
+                  Ini adalah daftar pelayanan yang terdaftar untuk kamu di database BWC.
                 </p>
 
-                <div className="mt-6 rounded-3xl border border-dashed border-orange-200 bg-orange-50 p-6 text-center">
-                  <p className="text-2xl font-black text-slate-950">Belum ada jadwal pelayanan aktif</p>
-                  <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-500">
-                    Nanti jadwal dari ketua departemen akan muncul di sini, termasuk status konfirmasi hadir dan role pelayanan.
-                  </p>
+                <div className="mt-6">
+                  {myMinistries.length === 0 ? (
+                    <div className="rounded-3xl border border-dashed border-orange-200 bg-orange-50 p-6 text-center">
+                      <p className="text-2xl font-black text-slate-950">Belum ada pelayanan terdaftar</p>
+                      <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-500">
+                        Kalau kamu sudah aktif melayani, hubungi admin atau leader BWC untuk update data pelayananmu.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {myMinistries.map((item) => (
+                        <div key={`${item.department_id}-${item.role}`} className="rounded-3xl border border-orange-100 bg-orange-50 p-5">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-700">Department</p>
+                              <h3 className="mt-2 text-2xl font-black text-slate-950">{item.department_name}</h3>
+                            </div>
+                            <Badge tone="green">Active</Badge>
+                          </div>
+                          <p className="mt-3 text-sm font-bold text-slate-600">Role: {item.role || "member"}</p>
+                          {item.source_note && (
+                            <p className="mt-2 text-xs leading-relaxed text-slate-500">{item.source_note}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </Card>
 
               <div className="grid gap-5 md:grid-cols-3">
                 <Card>
-                  <p className="text-sm text-slate-500">Next Service</p>
-                  <p className="mt-2 text-xl font-black text-slate-950">-</p>
+                  <p className="text-sm text-slate-500">Total Pelayanan</p>
+                  <p className="mt-2 text-4xl font-black text-slate-950">{myMinistries.length}</p>
                 </Card>
                 <Card>
-                  <p className="text-sm text-slate-500">Department</p>
-                  <p className="mt-2 text-xl font-black text-slate-950">-</p>
+                  <p className="text-sm text-slate-500">Next Service</p>
+                  <p className="mt-2 text-xl font-black text-slate-950">Belum dijadwalkan</p>
                 </Card>
                 <Card>
                   <p className="text-sm text-slate-500">Confirmation</p>
-                  <p className="mt-2"><Badge tone="slate">No schedule</Badge></p>
+                  <p className="mt-2"><Badge tone="slate">Coming soon</Badge></p>
                 </Card>
               </div>
             </section>
@@ -1588,6 +1677,7 @@ export default function Home() {
             {[
               { id: "dashboard", label: "Dashboard", icon: "📊" },
               { id: "members", label: "Database Jemaat", icon: "👥" },
+              { id: "departments", label: "Departemen", icon: "🧩" },
               { id: "scanner", label: "QR Scanner", icon: "📷" },
             ].map((item) => (
               <button
@@ -1716,6 +1806,103 @@ export default function Home() {
               </Card>
             </div>
           )}
+
+
+          {activeTab === "departments" && (
+            <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
+              <Card className="h-fit">
+                <div className="mb-5 flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-950">Departemen</h2>
+                    <p className="text-sm text-slate-500">Lihat member aktif berdasarkan pelayanan.</p>
+                  </div>
+                  <button onClick={fetchDepartmentOverview} className="rounded-2xl border border-orange-100 px-4 py-2 text-sm font-bold">
+                    Refresh
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {departmentOverview.map((dept) => (
+                    <button
+                      key={dept.department_id}
+                      onClick={() => setSelectedDepartmentId(dept.department_id)}
+                      className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm font-black transition ${
+                        selectedDepartmentId === dept.department_id ? "bg-orange-500 text-white" : "bg-orange-50 text-slate-700"
+                      }`}
+                    >
+                      <span>{dept.department_name}</span>
+                      <span className={`rounded-full px-2 py-1 text-xs ${
+                        selectedDepartmentId === dept.department_id ? "bg-white/20 text-white" : "bg-white text-orange-700"
+                      }`}>
+                        {dept.total_members}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </Card>
+
+              <Card>
+                {(() => {
+                  const selected = departmentOverview.find((dept) => dept.department_id === selectedDepartmentId) || departmentOverview[0];
+
+                  if (!selected) {
+                    return (
+                      <div className="rounded-3xl border border-dashed border-orange-200 bg-orange-50 p-8 text-center">
+                        <p className="text-2xl font-black text-slate-950">Belum ada data departemen</p>
+                        <p className="mt-2 text-sm text-slate-500">Pastikan data pelayanan sudah di-import ke database.</p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div>
+                      <div className="mb-5 flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">Department View</p>
+                          <h2 className="mt-2 text-3xl font-black text-slate-950">{selected.department_name}</h2>
+                          <p className="mt-1 text-sm text-slate-500">{selected.total_members} member aktif</p>
+                        </div>
+                        <Badge tone="green">Active</Badge>
+                      </div>
+
+                      <div className="overflow-hidden rounded-3xl border border-orange-100">
+                        <div className="hidden grid-cols-[1.3fr_0.8fr_0.8fr_1fr] bg-orange-50 px-4 py-3 text-xs font-bold uppercase tracking-wider text-orange-700 md:grid">
+                          <span>Nama</span>
+                          <span>Role</span>
+                          <span>Phone</span>
+                          <span>Note</span>
+                        </div>
+
+                        <div className="divide-y divide-orange-100">
+                          {selected.members.map((member) => (
+                            <div key={`${selected.department_id}-${member.member_id}-${member.role}`} className="grid gap-3 px-4 py-4 md:grid-cols-[1.3fr_0.8fr_0.8fr_1fr] md:items-center">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-orange-50 text-xs font-black text-orange-600">
+                                  {member.photo_url ? (
+                                    <img src={member.photo_url} alt={member.full_name} className="h-full w-full object-cover" />
+                                  ) : (
+                                    <span>{getInitials(member.full_name)}</span>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-slate-950">{member.full_name}</p>
+                                  <p className="text-xs text-slate-500">{member.member_code}</p>
+                                </div>
+                              </div>
+                              <p className="text-sm font-bold text-slate-700">{member.role || "member"}</p>
+                              <p className="text-sm text-slate-600">{member.phone || "-"}</p>
+                              <p className="text-xs leading-relaxed text-slate-500">{member.source_note || "-"}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </Card>
+            </div>
+          )}
+
 
           {activeTab === "scanner" && (
             <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
