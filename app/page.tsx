@@ -7,6 +7,7 @@ import { supabase } from "../lib/supabase";
 import BwcContactChat from "./components/BwcContactChat";
 import BwcMinistrySchedule from "./components/BwcMinistrySchedule";
 import BwcMyCoolDynamic from "./components/BwcMyCoolDynamic";
+import BwcDepartmentGroupChat from "./components/BwcDepartmentGroupChat";
 
 type Member = {
   id: string;
@@ -330,8 +331,8 @@ export default function Home() {
   const [myCoolInfo, setMyCoolInfo] = useState<MyCoolInfo | null>(null);
   const [departmentOverview, setDepartmentOverview] = useState<DepartmentOverview[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "profileViewer" | "analytics" | "events" | "scanner" | "contacts" | "ministrySchedule">("dashboard");
-  const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "analytics" | "scan" | "profile" | "contacts" | "ministrySchedule">("home");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "profileViewer" | "analytics" | "events" | "scanner" | "contacts" | "ministrySchedule" | "groupChat">("dashboard");
+  const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "analytics" | "scan" | "profile" | "contacts" | "ministrySchedule" | "groupChat">("home");
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -2841,6 +2842,7 @@ export default function Home() {
       { id: "cool", label: "COOL", icon: "🌱" },
       { id: "forum", label: "Forum", icon: "💬" },
         { id: "contacts", label: "Contact", icon: "📩" },
+        { id: "groupChat", label: "Group", icon: "🗣️" },
       { id: "profile", label: "Profile", icon: "👤" },
     ] as const;
 
@@ -3566,6 +3568,8 @@ export default function Home() {
 
           {memberTab === "ministrySchedule" && <BwcMinistrySchedule />}
 
+          {memberTab === "groupChat" && <BwcDepartmentGroupChat />}
+
           {memberTab === "contacts" && <BwcContactChat />}
 
           {memberTab === "profile" && (
@@ -3760,6 +3764,7 @@ export default function Home() {
               { id: "profileViewer", label: "Lihat Profil", icon: "👁️" },
               { id: "analytics", label: "Analytics", icon: "📊" },
               { id: "contacts", label: "Contacts", icon: "💬" },
+              { id: "groupChat", label: "Group Chat", icon: "🗣️" },
               { id: "events", label: "Broadcast Event", icon: "📣" },
               { id: "scanner", label: "QR Scanner", icon: "📷" },
             ].map((item) => (
@@ -4176,6 +4181,8 @@ export default function Home() {
 
 
           {activeTab === "ministrySchedule" && <BwcMinistrySchedule />}
+
+          {activeTab === "groupChat" && <BwcDepartmentGroupChat />}
 
           {activeTab === "contacts" && <BwcContactChat />}
 
