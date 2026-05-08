@@ -210,3 +210,32 @@ button,
     letter-spacing: 0.14em !important;
   }
 }
+
+/* =========================================================
+   BWC Mobile Bottom Nav V2
+   ========================================================= */
+@media (max-width: 767px) {
+  body.bwc-has-mobile-bottom-nav {
+    padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .bwc-mobile-bottom-spacer {
+    height: calc(86px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .bwc-mobile-bottom-nav {
+    animation: bwcBottomNavIn 220ms ease-out both;
+  }
+
+  @keyframes bwcBottomNavIn {
+    from {
+      transform: translateY(18px);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+}
