@@ -47,7 +47,18 @@ type ScheduleAssignment = {
 };
 
 function monthValue(date = new Date()) {
-  return date.toISOString().slice(0, 7);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+
+  return `${year}-${month}`;
+}
+
+function toLocalDateValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 function firstDateOfMonth(value: string) {
@@ -70,12 +81,13 @@ function formatDate(value?: string | null) {
 function getSundays(month: string) {
   const [year, monthNumber] = month.split("-").map(Number);
   const result: string[] = [];
-  const date = new Date(year, monthNumber - 1, 1);
+  const date = new Date(year, monthNumber - 1, 1, 12, 0, 0);
 
   while (date.getMonth() === monthNumber - 1) {
     if (date.getDay() === 0) {
-      result.push(date.toISOString().slice(0, 10));
+      result.push(toLocalDateValue(date));
     }
+
     date.setDate(date.getDate() + 1);
   }
 
