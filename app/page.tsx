@@ -21,6 +21,7 @@ type Member = {
   gender: string | null;
   address: string | null;
   created_at: string;
+  updated_at: string | null;
 };
 
 type BwcPost = any;
