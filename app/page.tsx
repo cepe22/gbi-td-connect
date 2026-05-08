@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import QRCode from "qrcode";
 import { supabase } from "../lib/supabase";
+import BwcContactChat from "./components/BwcContactChat";
 
 type Member = {
   id: string;
@@ -327,8 +328,8 @@ export default function Home() {
   const [myCoolInfo, setMyCoolInfo] = useState<MyCoolInfo | null>(null);
   const [departmentOverview, setDepartmentOverview] = useState<DepartmentOverview[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "profileViewer" | "analytics" | "events" | "scanner">("dashboard");
-  const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "analytics" | "scan" | "profile">("home");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "profileViewer" | "analytics" | "events" | "scanner" | "contacts">("dashboard");
+  const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "analytics" | "scan" | "profile" | "contacts">("home");
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -3592,6 +3593,8 @@ export default function Home() {
           {memberTab === "scan" && renderBwcLiveQrScanner()}
 
 
+          {memberTab === "contacts" && <BwcContactChat />}
+
           {memberTab === "profile" && (
             <section className="grid gap-6 lg:grid-cols-[1fr_420px]">
               <Card>
@@ -3782,6 +3785,7 @@ export default function Home() {
               { id: "departments", label: "Departemen", icon: "🧩" },
               { id: "profileViewer", label: "Lihat Profil", icon: "👁️" },
               { id: "analytics", label: "Analytics", icon: "📊" },
+              { id: "contacts", label: "Contacts", icon: "💬" },
               { id: "events", label: "Broadcast Event", icon: "📣" },
               { id: "scanner", label: "QR Scanner", icon: "📷" },
             ].map((item) => (
@@ -4196,6 +4200,8 @@ export default function Home() {
           )}
 
 
+
+          {activeTab === "contacts" && <BwcContactChat />}
 
           {activeTab === "analytics" && (
             <section className="space-y-6">
