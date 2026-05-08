@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import QRCode from "qrcode";
 import { supabase } from "../lib/supabase";
@@ -113,6 +113,7 @@ export default function Home() {
   const [linkedMember, setLinkedMember] = useState<Member | null>(null);
   const [memberQrDataUrl, setMemberQrDataUrl] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const profilePhotoInputRef = useRef<HTMLInputElement | null>(null);
   const [bwcPosts, setBwcPosts] = useState<BwcPost[]>([]);
   const [bwcComments, setBwcComments] = useState<Record<string, BwcComment[]>>({});
   const [newPost, setNewPost] = useState("");
@@ -584,13 +585,13 @@ export default function Home() {
     }
 
     if (!file.type.startsWith("image/")) {
-      setMessage("File harus berupa gambar.");
+      setMessage("File harus berupa gambar JPG, PNG, atau WebP.");
       return;
     }
 
     const maxSizeInBytes = 2 * 1024 * 1024;
     if (file.size > maxSizeInBytes) {
-      setMessage("Ukuran foto maksimal 2MB.");
+      setMessage("Ukuran foto maksimal 2MB. Coba compress atau pilih foto yang lebih kecil.");
       return;
     }
 
@@ -614,7 +615,7 @@ export default function Home() {
         });
 
       if (uploadError) {
-        setMessage(uploadError.message);
+        setMessage(`Upload foto gagal: ${uploadError.message}`);
         return;
       }
 
@@ -629,11 +630,11 @@ export default function Home() {
       });
 
       if (error) {
-        setMessage(error.message);
+        setMessage(`Foto sudah terupload, tapi gagal disimpan ke profile: ${error.message}`);
         return;
       }
 
-      setLinkedMember((prev) => prev ? { ...prev, photo_url: photoUrl } : prev);
+      setLinkedMember((prev) => prev ? { ...prev, photo_url: photoUrl, updated_at: new Date().toISOString() } : prev);
 
       const result = Array.isArray(data) ? data[0] : data;
       setMessage(result?.message || "Foto profile berhasil diperbarui.");
@@ -1429,25 +1430,35 @@ export default function Home() {
                       Tambahkan foto supaya tim pendataan dan leader lebih mudah mengenali member.
                     </p>
 
-                    <label className={`mt-4 inline-flex cursor-pointer rounded-2xl px-4 py-3 text-sm font-black text-white ${
-                      uploadingPhoto ? "bg-slate-400" : "bg-orange-500"
-                    }`}>
-                      <input
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp"
-                        className="hidden"
-                        onChange={uploadMyProfilePicture}
+                    <input
+                      ref={profilePhotoInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={uploadMyProfilePicture}
+                      disabled={uploadingPhoto}
+                    />
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => profilePhotoInputRef.current?.click()}
                         disabled={uploadingPhoto}
-                      />
-                      {uploadingPhoto ? "Uploading..." : linkedMember.photo_url ? "Ganti Foto" : "Tambah Foto"}
-                    </label>
-                    <button
-                      type="button"
-                      onClick={fetchLinkedMember}
-                      className="ml-2 mt-4 inline-flex rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm font-black text-slate-700"
-                    >
-                      Refresh Foto
-                    </button>
+                        className={`rounded-2xl px-4 py-3 text-sm font-black text-white ${
+                          uploadingPhoto ? "bg-slate-400" : "bg-orange-500"
+                        }`}
+                      >
+                        {uploadingPhoto ? "Uploading..." : linkedMember.photo_url ? "Ganti Foto" : "Tambah Foto"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={fetchLinkedMember}
+                        className="rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm font-black text-slate-700"
+                      >
+                        Refresh Foto
+                      </button>
+                    </div>
                   </div>
                 </div>
 
