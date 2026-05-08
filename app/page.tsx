@@ -10,6 +10,7 @@ type Member = {
   member_code: string;
   qr_code_value: string;
   full_name: string;
+  photo_url: string | null;
   nickname: string | null;
   phone: string | null;
   email: string | null;
@@ -59,6 +60,15 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
   return <div className={`rounded-3xl border border-orange-100 bg-white p-5 shadow-sm ${className}`}>{children}</div>;
 }
 
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase())
+    .join("") || "?";
+}
+
 function toDateInputValue(value?: string | null) {
   if (!value) return "";
   return String(value).slice(0, 10);
@@ -98,6 +108,7 @@ export default function Home() {
   const [roles, setRoles] = useState<string[]>([]);
   const [linkedMember, setLinkedMember] = useState<Member | null>(null);
   const [memberQrDataUrl, setMemberQrDataUrl] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const [members, setMembers] = useState<Member[]>([]);
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
@@ -382,6 +393,81 @@ export default function Home() {
     document.body.removeChild(link);
   }
 
+  async function uploadMyProfilePicture(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+
+    if (!file) return;
+
+    if (!session) {
+      setMessage("Session tidak ditemukan. Silakan login ulang.");
+      return;
+    }
+
+    if (!linkedMember) {
+      setMessage("Profile belum terhubung dengan data member.");
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setMessage("File harus berupa gambar.");
+      return;
+    }
+
+    const maxSizeInBytes = 2 * 1024 * 1024;
+    if (file.size > maxSizeInBytes) {
+      setMessage("Ukuran foto maksimal 2MB.");
+      return;
+    }
+
+    try {
+      setUploadingPhoto(true);
+      setMessage("");
+
+      const rawExtension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const safeExtension = ["jpg", "jpeg", "png", "webp"].includes(rawExtension)
+        ? rawExtension
+        : "jpg";
+
+      const filePath = `${session.user.id}/avatar-${Date.now()}.${safeExtension}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("member-avatars")
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: true,
+          contentType: file.type,
+        });
+
+      if (uploadError) {
+        setMessage(uploadError.message);
+        return;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from("member-avatars")
+        .getPublicUrl(filePath);
+
+      const photoUrl = publicUrlData.publicUrl;
+
+      const { data, error } = await supabase.rpc("update_my_member_photo", {
+        input_photo_url: photoUrl,
+      });
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      const result = Array.isArray(data) ? data[0] : data;
+
+      await fetchLinkedMember();
+      setMessage(result?.message || "Foto profile berhasil diperbarui.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
+
   async function updateMyProfile(e: React.FormEvent) {
     e.preventDefault();
     setMessage("");
@@ -430,7 +516,7 @@ export default function Home() {
   async function fetchMembers() {
     const { data, error } = await supabase
       .from("members")
-      .select("id, member_code, qr_code_value, full_name, nickname, phone, email, birth_date, gender, address, membership_status, attendance_status, joined_at, created_at")
+      .select("id, member_code, qr_code_value, full_name, photo_url, nickname, phone, email, birth_date, gender, address, membership_status, attendance_status, joined_at, created_at")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -1038,6 +1124,40 @@ export default function Home() {
               <Card>
                 <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">Profile Connected</p>
                 <h2 className="mt-3 text-3xl font-black text-slate-950">{linkedMember.full_name}</h2>
+
+                <div className="mt-5 flex flex-col gap-4 rounded-[2rem] border border-orange-100 bg-orange-50 p-5 sm:flex-row sm:items-center">
+                  <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-white text-2xl font-black text-orange-600 shadow-sm">
+                    {linkedMember.photo_url ? (
+                      <img
+                        src={linkedMember.photo_url}
+                        alt={linkedMember.full_name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span>{getInitials(linkedMember.full_name)}</span>
+                    )}
+                  </div>
+
+                  <div className="flex-1">
+                    <p className="text-sm font-black text-slate-950">Foto Profile</p>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-500">
+                      Tambahkan foto supaya tim pendataan dan leader lebih mudah mengenali member.
+                    </p>
+
+                    <label className={`mt-4 inline-flex cursor-pointer rounded-2xl px-4 py-3 text-sm font-black text-white ${
+                      uploadingPhoto ? "bg-slate-400" : "bg-orange-500"
+                    }`}>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="hidden"
+                        onChange={uploadMyProfilePicture}
+                        disabled={uploadingPhoto}
+                      />
+                      {uploadingPhoto ? "Uploading..." : linkedMember.photo_url ? "Ganti Foto" : "Tambah Foto"}
+                    </label>
+                  </div>
+                </div>
 
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-2xl bg-orange-50 p-4">
