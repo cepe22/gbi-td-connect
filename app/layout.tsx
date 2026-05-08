@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "./mobile-first.css";
+import BwcHomeCompletionCleanup from "./components/BwcHomeCompletionCleanup";
 
 export const viewport = {
   width: "device-width",
@@ -35,7 +36,8 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body suppressHydrationWarning className="min-h-full flex flex-col">{children}</body>
+      <body suppressHydrationWarning className="min-h-full flex flex-col"><BwcHomeCompletionCleanup />
+        {children}</body>
     </html>
   );
 }
