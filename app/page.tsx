@@ -2351,28 +2351,33 @@ export default function Home() {
   async function startBwcCameraScanner() {
     if (typeof window === "undefined") return;
 
-    setBwcScannerStatus("Menyalakan kamera...");
+    setBwcScannerStatus("Membuka kamera...");
 
     try {
-      const { Html5QrcodeScanner } = await import("html5-qrcode");
+      const { Html5Qrcode } = await import("html5-qrcode");
 
       if (bwcQrScannerRef.current) {
         await stopBwcCameraScanner();
       }
 
-      const scanner = new Html5QrcodeScanner(
-        "bwc-live-qr-reader",
+      const readerId = "bwc-live-qr-reader";
+      const readerElement = document.getElementById(readerId);
+
+      if (readerElement) {
+        readerElement.innerHTML = "";
+      }
+
+      const scanner = new Html5Qrcode(readerId);
+      bwcQrScannerRef.current = scanner;
+
+      await scanner.start(
+        { facingMode: "environment" },
         {
           fps: 10,
-          qrbox: { width: 250, height: 250 },
-          rememberLastUsedCamera: true,
+          qrbox: { width: 260, height: 260 },
           aspectRatio: 1,
+          disableFlip: false,
         },
-        false
-      );
-
-      bwcQrScannerRef.current = scanner;
-      scanner.render(
         (decodedText: string) => {
           handleBwcLiveCheckIn(decodedText);
         },
@@ -2382,7 +2387,11 @@ export default function Home() {
       setBwcCameraActive(true);
       setBwcScannerStatus("Kamera aktif. Arahkan ke QR member.");
     } catch (error: any) {
-      const errorMessage = error?.message || "Kamera gagal dibuka. Pastikan permission camera diizinkan.";
+      const errorMessage =
+        error?.message ||
+        "Kamera gagal dibuka. Klik Allow/Izinkan camera permission, lalu coba Start Camera lagi.";
+
+      setBwcCameraActive(false);
       setBwcScannerStatus(errorMessage);
       setMessage(errorMessage);
     }
@@ -2391,11 +2400,24 @@ export default function Home() {
   async function stopBwcCameraScanner() {
     try {
       if (bwcQrScannerRef.current) {
-        await bwcQrScannerRef.current.clear();
+        if (typeof bwcQrScannerRef.current.stop === "function") {
+          await bwcQrScannerRef.current.stop();
+        }
+
+        if (typeof bwcQrScannerRef.current.clear === "function") {
+          bwcQrScannerRef.current.clear();
+        }
+
         bwcQrScannerRef.current = null;
       }
     } catch {
       bwcQrScannerRef.current = null;
+    }
+
+    const readerElement = typeof document !== "undefined" ? document.getElementById("bwc-live-qr-reader") : null;
+
+    if (readerElement) {
+      readerElement.innerHTML = "";
     }
 
     setBwcCameraActive(false);
@@ -2530,7 +2552,7 @@ export default function Home() {
           </div>
 
           <div className="mt-5 overflow-hidden rounded-3xl border border-orange-100 bg-orange-50 p-3">
-            <div id="bwc-live-qr-reader" className="w-full" />
+            <div id="bwc-live-qr-reader" className="min-h-[320px] w-full rounded-2xl bg-white" />
           </div>
 
           <p className="mt-3 text-xs leading-relaxed text-slate-400">
