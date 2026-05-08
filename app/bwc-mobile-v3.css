@@ -1,0 +1,243 @@
+/* =========================================================
+   GBI TD Connect - iPhone Mobile Layout V3
+   Scoped, safe, mobile-first fixes.
+   ========================================================= */
+
+:root {
+  --bwc-orange: #ff5a00;
+  --bwc-orange-2: #ff7a1a;
+  --bwc-bg: #fffaf6;
+  --bwc-card: #ffffff;
+  --bwc-ink: #070b1d;
+  --bwc-muted: #64748b;
+  --bwc-border: rgba(255, 90, 0, 0.16);
+  --bwc-shadow: 0 14px 38px rgba(15, 23, 42, 0.08);
+  --bwc-bottom-nav-height: 74px;
+  --bwc-max-mobile: 430px;
+}
+
+html,
+body {
+  background: var(--bwc-bg);
+}
+
+@media (max-width: 767px) {
+  body {
+    background:
+      radial-gradient(circle at 35% -8%, rgba(255, 90, 0, 0.12), transparent 15rem),
+      var(--bwc-bg);
+    padding-top: max(8px, env(safe-area-inset-top, 0px));
+    padding-bottom: calc(var(--bwc-bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 18px);
+  }
+
+  /* General page safety */
+  body,
+  main,
+  main > div {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  /* Member Home V2 */
+  .bwc-member-home-v2 {
+    width: 100%;
+    max-width: var(--bwc-max-mobile) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding: 0 14px 96px !important;
+  }
+
+  .bwc-member-home-v2 > div,
+  .bwc-member-home-v2 > section {
+    max-width: 100%;
+  }
+
+  .bwc-member-home-v2 h1 {
+    font-size: clamp(1.8rem, 7.2vw, 2.35rem) !important;
+    line-height: 1.08 !important;
+    letter-spacing: -0.035em;
+  }
+
+  .bwc-member-home-v2 [class*="text-3xl"] {
+    font-size: clamp(1.75rem, 7vw, 2.25rem) !important;
+    line-height: 1.12 !important;
+  }
+
+  .bwc-member-home-v2 [class*="text-2xl"] {
+    font-size: 1.3rem !important;
+    line-height: 1.25 !important;
+  }
+
+  /* Shortcut grid must stay 4 columns on iPhone */
+  .bwc-member-home-v2 .bwc-shortcut-grid,
+  .bwc-member-home-v2 [data-bwc-shortcut-grid="true"] {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .bwc-member-home-v2 [data-bwc-shortcut-item="true"] {
+    min-height: 86px !important;
+    border-radius: 20px !important;
+    padding: 9px 5px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .bwc-member-home-v2 [data-bwc-shortcut-icon="true"] {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 18px !important;
+    background: #fff3ea !important;
+    color: var(--bwc-orange) !important;
+    box-shadow: 0 8px 20px rgba(255, 90, 0, 0.08) !important;
+  }
+
+  .bwc-member-home-v2 [data-bwc-shortcut-label="true"] {
+    font-size: 10.5px !important;
+    line-height: 1.15 !important;
+    color: #334155 !important;
+  }
+
+  /* QR page and other content cards */
+  .bwc-mobile-page-fix,
+  [data-bwc-mobile-page="true"] {
+    width: 100%;
+    max-width: var(--bwc-max-mobile);
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0 14px 96px;
+  }
+
+  /* Prevent huge cards due to previous broad selectors */
+  .bwc-member-home-v2 button,
+  .bwc-member-home-v2 a {
+    max-width: 100%;
+  }
+
+  /* Top legacy member header should be less huge on mobile */
+  .bwc-legacy-member-header {
+    max-width: var(--bwc-max-mobile);
+    margin: 0 auto 12px;
+  }
+
+  /* Compact premium bottom nav */
+  .bwc-mobile-bottom-nav {
+    position: fixed !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 10px) !important;
+    transform: translateX(-50%) !important;
+    width: min(calc(100vw - 22px), var(--bwc-max-mobile)) !important;
+    height: var(--bwc-bottom-nav-height) !important;
+    min-height: var(--bwc-bottom-nav-height) !important;
+    padding: 6px !important;
+    border: 1px solid var(--bwc-border) !important;
+    border-radius: 24px !important;
+    background: rgba(255, 255, 255, 0.94) !important;
+    box-shadow: 0 -10px 36px rgba(15, 23, 42, 0.13) !important;
+    backdrop-filter: blur(18px) !important;
+    -webkit-backdrop-filter: blur(18px) !important;
+    z-index: 9999 !important;
+    display: block !important;
+  }
+
+  .bwc-mobile-bottom-nav__grid {
+    width: 100%;
+    height: 100%;
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+  }
+
+  .bwc-mobile-bottom-nav__item {
+    position: relative;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 62px !important;
+    border: 0 !important;
+    border-radius: 18px !important;
+    background: transparent !important;
+    color: #94a3b8 !important;
+    box-shadow: none !important;
+    padding: 5px 2px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    font-size: 10.5px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  .bwc-mobile-bottom-nav__item-icon {
+    font-size: 20px !important;
+    line-height: 1 !important;
+    color: inherit !important;
+  }
+
+  .bwc-mobile-bottom-nav__item-label {
+    font-size: 10px !important;
+    line-height: 1 !important;
+    color: inherit !important;
+    font-weight: 900 !important;
+  }
+
+  .bwc-mobile-bottom-nav__item.is-active {
+    color: #ffffff !important;
+    background: linear-gradient(180deg, var(--bwc-orange-2), var(--bwc-orange)) !important;
+    box-shadow: 0 10px 24px rgba(255, 90, 0, 0.22) !important;
+  }
+
+  .bwc-mobile-bottom-nav__badge {
+    position: absolute;
+    top: 3px;
+    right: 6px;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    padding: 0 5px;
+    background: #ef4444;
+    color: white;
+    font-size: 10px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+  }
+
+  .bwc-mobile-bottom-spacer {
+    display: none !important;
+  }
+
+  /* Keep QR content away from status bar */
+  [class*="Digital Member Card"],
+  section:has([alt*="QR"]),
+  section:has(canvas) {
+    scroll-margin-top: 24px;
+  }
+
+  /* If old tabs still exist, make them horizontal and compact */
+  nav:not(.bwc-mobile-bottom-nav) {
+    max-width: var(--bwc-max-mobile);
+    margin-left: auto;
+    margin-right: auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  nav:not(.bwc-mobile-bottom-nav)::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .bwc-mobile-bottom-nav,
+  .bwc-mobile-bottom-spacer {
+    display: none !important;
+  }
+}

@@ -54,42 +54,32 @@ export default function BwcMobileBottomNavV2({ activeTab, onNavigate }: Props) {
   }, []);
 
   return (
-    <>
-      <div className="bwc-mobile-bottom-spacer md:hidden" />
+    <nav className="bwc-mobile-bottom-nav" aria-label="Member mobile navigation">
+      <div className="bwc-mobile-bottom-nav__grid">
+        {navItems.map((item) => {
+          const isActive = activeTab === item.id;
+          const showBadge = Number(item.badge || 0) > 0;
 
-      <nav className="bwc-mobile-bottom-nav fixed inset-x-0 bottom-0 z-[80] border-t border-orange-100 bg-white/92 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.55rem)] pt-2 shadow-[0_-18px_45px_rgba(15,23,42,0.10)] backdrop-blur-xl md:hidden">
-        <div className="mx-auto grid max-w-[480px] grid-cols-5 gap-1 rounded-[1.5rem]">
-          {navItems.map((item) => {
-            const isActive = activeTab === item.id;
-            const showBadge = Number(item.badge || 0) > 0;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onNavigate(item.id)}
+              className={`bwc-mobile-bottom-nav__item${isActive ? " is-active" : ""}`}
+              aria-current={isActive ? "page" : undefined}
+            >
+              <span className="bwc-mobile-bottom-nav__item-icon">{item.icon}</span>
+              <span className="bwc-mobile-bottom-nav__item-label">{item.label}</span>
 
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onNavigate(item.id)}
-                className={`relative flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-[1.15rem] px-2 transition ${
-                  isActive ? "bg-orange-500 text-white shadow-lg shadow-orange-200" : "text-slate-400"
-                }`}
-              >
-                <span className={`text-[1.35rem] leading-none ${isActive ? "text-white" : "text-slate-400"}`}>
-                  {item.icon}
+              {showBadge && (
+                <span className="bwc-mobile-bottom-nav__badge">
+                  {Number(item.badge) > 9 ? "9+" : item.badge}
                 </span>
-                <span className={`text-[10px] font-black leading-none ${isActive ? "text-white" : "text-slate-500"}`}>
-                  {item.label}
-                </span>
-
-                {showBadge && (
-                  <span className="absolute right-2 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ring-2 ring-white">
-                    {Number(item.badge) > 9 ? "9+" : item.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
-    </>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
-

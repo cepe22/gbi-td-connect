@@ -1,0 +1,241 @@
+/* =========================================================
+   GBI TD Connect - Mobile First UX Overrides
+   Safe CSS layer: tidak mengubah logic, hanya mobile responsiveness.
+   ========================================================= */
+
+:root {
+  --bwc-mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+/* Prevent iOS auto-zoom on input focus */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+/* Mobile first: all complex dashboard grids collapse nicely */
+@media (max-width: 767px) {
+  body {
+    background: #fffaf7;
+  }
+
+  main,
+  section,
+  article {
+    max-width: 100%;
+  }
+
+  /* Most Tailwind grid variants become 1 column on mobile */
+  [class*="grid-cols-"],
+  [class*="xl:grid-cols"],
+  [class*="lg:grid-cols"],
+  [class*="md:grid-cols"],
+  [class*="sm:grid-cols"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* Reduce fixed-width / dashboard columns that can cause overflow */
+  [class*="w-[360px]"],
+  [class*="w-[320px]"],
+  [class*="min-w-[360px]"],
+  [class*="min-w-[320px]"],
+  [class*="[360px_"],
+  [class*="[320px_"],
+  [class*="[420px_"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Make horizontal tab/nav areas usable on mobile */
+  nav,
+  [role="tablist"],
+  [class*="overflow-x-auto"],
+  [class*="overflow-auto"] {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  nav::-webkit-scrollbar,
+  [role="tablist"]::-webkit-scrollbar,
+  [class*="overflow-x-auto"]::-webkit-scrollbar,
+  [class*="overflow-auto"]::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Cards and panels */
+  [class*="rounded-[2rem]"],
+  [class*="rounded-[1.5rem]"] {
+    border-radius: 1.25rem !important;
+  }
+
+  [class*="p-7"],
+  [class*="p-6"] {
+    padding: 1.25rem !important;
+  }
+
+  [class*="p-5"] {
+    padding: 1rem !important;
+  }
+
+  /* Mobile typography */
+  [class*="text-4xl"] {
+    font-size: 2rem !important;
+    line-height: 2.35rem !important;
+  }
+
+  [class*="text-3xl"] {
+    font-size: 1.75rem !important;
+    line-height: 2.1rem !important;
+  }
+
+  [class*="text-2xl"] {
+    font-size: 1.35rem !important;
+    line-height: 1.75rem !important;
+  }
+
+  /* Forms */
+  input,
+  select,
+  textarea {
+    width: 100%;
+    min-height: 46px;
+  }
+
+  textarea {
+    min-height: 96px;
+  }
+
+  button,
+  [role="button"] {
+    min-height: 44px;
+  }
+
+  /* Chat / forum panes */
+  [class*="h-[560px]"],
+  [class*="h-[620px]"],
+  [class*="h-[720px]"] {
+    height: min(62vh, 560px) !important;
+  }
+
+  [class*="min-h-[620px]"],
+  [class*="min-h-[720px]"] {
+    min-height: 0 !important;
+  }
+
+  /* Keep chat composer pleasant on phone */
+  textarea + button,
+  input + button {
+    flex-shrink: 0;
+  }
+
+  /* Tables: scroll instead of breaking layout */
+  table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  /* Top header and navigation should not overflow */
+  header,
+  [class*="sticky"],
+  [class*="fixed"] {
+    max-width: 100vw;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 430px) {
+  [class*="px-7"],
+  [class*="px-6"],
+  [class*="px-5"],
+  [class*="px-4"] {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  [class*="gap-6"] {
+    gap: 1rem !important;
+  }
+
+  [class*="gap-5"] {
+    gap: 0.85rem !important;
+  }
+
+  [class*="gap-4"] {
+    gap: 0.75rem !important;
+  }
+
+  [class*="text-4xl"] {
+    font-size: 1.75rem !important;
+    line-height: 2.1rem !important;
+  }
+
+  [class*="tracking-[0.2em]"] {
+    letter-spacing: 0.14em !important;
+  }
+}
+
+/* =========================================================
+   BWC Mobile Bottom Nav V2
+   ========================================================= */
+@media (max-width: 767px) {
+  body.bwc-has-mobile-bottom-nav {
+    padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .bwc-mobile-bottom-spacer {
+    height: calc(86px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .bwc-mobile-bottom-nav {
+    animation: bwcBottomNavIn 220ms ease-out both;
+  }
+
+  @keyframes bwcBottomNavIn {
+    from {
+      transform: translateY(18px);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+}

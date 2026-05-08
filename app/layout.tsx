@@ -4,6 +4,7 @@ import "./globals.css";
 import "./mobile-first.css";
 import "./bwc-premium-mobile.css";
 import BwcHomeCompletionCleanup from "./components/BwcHomeCompletionCleanup";
+import "./bwc-mobile-v3.css";
 
 export const viewport = {
   width: "device-width",

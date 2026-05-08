@@ -117,7 +117,7 @@ export default function BwcMemberHomeV2({ onNavigate }: Props) {
   ];
 
   return (
-    <section className="mx-auto w-full max-w-[480px] space-y-5 pb-6 md:max-w-6xl">
+    <section className="bwc-member-home-v2 mx-auto w-full max-w-[480px] space-y-5 pb-6 md:max-w-6xl">
       {status && (
         <div className="rounded-[1.25rem] bg-orange-50 px-4 py-3 text-sm font-black text-orange-700">
           {status}
@@ -197,18 +197,18 @@ export default function BwcMemberHomeV2({ onNavigate }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-3 rounded-[2rem] border border-orange-100 bg-white p-4 shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
+      <div data-bwc-shortcut-grid="true" className="bwc-shortcut-grid grid grid-cols-4 gap-3 rounded-[2rem] border border-orange-100 bg-white p-4 shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
         {shortcuts.map((item) => (
           <button
             key={item.tab}
             type="button"
             onClick={() => go(item.tab)}
-            className="group flex flex-col items-center gap-2 rounded-[1.35rem] px-2 py-3 transition hover:bg-orange-50"
+            data-bwc-shortcut-item="true" className="group flex flex-col items-center gap-2 rounded-[1.35rem] px-2 py-3 transition hover:bg-orange-50"
           >
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 text-xl font-black text-orange-500 shadow-sm transition group-hover:bg-orange-500 group-hover:text-white">
+            <span data-bwc-shortcut-icon="true" className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 text-xl font-black text-orange-500 shadow-sm transition group-hover:bg-orange-500 group-hover:text-white">
               {item.icon}
             </span>
-            <span className="text-center text-[11px] font-black leading-tight text-slate-700">
+            <span data-bwc-shortcut-label="true" className="text-center text-[11px] font-black leading-tight text-slate-700">
               {item.label}
             </span>
           </button>
