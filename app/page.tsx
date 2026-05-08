@@ -404,7 +404,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    function renderBwcAnalyticsDashboard() {
+    function BwcAnalyticsDashboardBrokenUnused() {
     const data = bwcAnalytics;
     const weeklyTrend = data?.weekly_trend || [];
     const monthlyTrend = data?.monthly_trend || [];
@@ -646,6 +646,247 @@ export default function Home() {
       </section>
     );
   }
+
+
+  const BwcAnalyticsDashboard = () => {
+    const data = bwcAnalytics;
+    const weeklyTrend = data?.weekly_trend || [];
+    const monthlyTrend = data?.monthly_trend || [];
+    const coolBreakdown = data?.cool_breakdown || [];
+    const decliningMembers = data?.declining_members || [];
+    const atRiskMembers = data?.at_risk_members || [];
+    const recentSessions = data?.recent_sessions || [];
+    const maxWeekly = Math.max(1, ...weeklyTrend.map((item) => item.total_attendance || 0));
+    const maxMonthly = Math.max(1, ...monthlyTrend.map((item) => item.avg_attendance || item.total_checkins || 0));
+    const maxCool = Math.max(1, ...coolBreakdown.map((item) => item.total_checkins || 0));
+
+    if (analyticsLoading && !data) {
+      return (
+        <Card>
+          <p className="text-lg font-black text-slate-950">Loading analytics...</p>
+          <p className="mt-1 text-sm text-slate-500">Sedang mengambil data kehadiran BWC.</p>
+        </Card>
+      );
+    }
+
+    if (!data) {
+      return (
+        <Card>
+          <div className="rounded-3xl border border-dashed border-orange-200 bg-orange-50 p-8 text-center">
+            <p className="text-2xl font-black text-slate-950">Belum ada analytics yang dimuat</p>
+            <p className="mt-2 text-sm text-slate-500">Klik tombol refresh untuk mengambil data absensi terbaru.</p>
+            <button
+              onClick={fetchBwcAnalytics}
+              className="mt-5 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-black text-white"
+            >
+              Load Analytics
+            </button>
+          </div>
+        </Card>
+      );
+    }
+
+    return (
+      <section className="space-y-6">
+        <div className="rounded-[2rem] bg-gradient-to-br from-slate-950 to-slate-800 p-6 text-white shadow-xl">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-300">BWC Attendance Analytics</p>
+              <h2 className="mt-3 text-4xl font-black">Dashboard Kehadiran</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300">
+                Pantau tren kedatangan, performa per COOL, dan member yang mulai jarang hadir dalam 1–3 bulan terakhir.
+              </p>
+            </div>
+            <button
+              onClick={fetchBwcAnalytics}
+              className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950"
+            >
+              {analyticsLoading ? "Refreshing..." : "Refresh Data"}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card>
+            <p className="text-sm text-slate-500">Last Attendance</p>
+            <p className="mt-2 text-4xl font-black text-slate-950">{data.overview?.last_session_attendance || 0}</p>
+            <p className="mt-1 text-xs font-bold text-slate-400">{formatAnalyticsDate(data.overview?.last_session_date)}</p>
+          </Card>
+          <Card>
+            <p className="text-sm text-slate-500">Average / Ibadah</p>
+            <p className="mt-2 text-4xl font-black text-slate-950">{data.overview?.avg_attendance || 0}</p>
+            <p className="mt-1 text-xs font-bold text-slate-400">Last {data.overview?.months || 6} months</p>
+          </Card>
+          <Card>
+            <p className="text-sm text-slate-500">Unique 30 Hari</p>
+            <p className="mt-2 text-4xl font-black text-slate-950">{data.overview?.unique_attendees_30d || 0}</p>
+            <p className="mt-1 text-xs font-bold text-slate-400">Member hadir 30 hari terakhir</p>
+          </Card>
+          <Card>
+            <p className="text-sm text-slate-500">At Risk</p>
+            <p className="mt-2 text-4xl font-black text-slate-950">{atRiskMembers.length}</p>
+            <p className="mt-1 text-xs font-bold text-slate-400">Perlu follow-up</p>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+          <Card>
+            <h3 className="text-xl font-black text-slate-950">Trend Kedatangan Mingguan</h3>
+            <p className="mt-1 text-sm text-slate-500">Jumlah check-in per ibadah BWC 1PM.</p>
+
+            <div className="mt-5 flex h-72 items-end gap-2 overflow-x-auto rounded-3xl bg-orange-50 p-4">
+              {weeklyTrend.slice(-20).map((item) => (
+                <div key={item.session_date} className="flex h-full min-w-[42px] flex-col items-center justify-end gap-2">
+                  <div className="text-xs font-black text-slate-700">{item.total_attendance}</div>
+                  <div
+                    className="w-full rounded-t-2xl bg-orange-500"
+                    style={{ height: `${Math.max(8, ((item.total_attendance || 0) / maxWeekly) * 210)}px` }}
+                    title={`${formatAnalyticsDate(item.session_date)}: ${item.total_attendance}`}
+                  />
+                  <div className="-rotate-45 whitespace-nowrap text-[10px] font-bold text-slate-400">
+                    {formatAnalyticsDate(item.session_date)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card>
+            <h3 className="text-xl font-black text-slate-950">Monthly Average</h3>
+            <p className="mt-1 text-sm text-slate-500">Rata-rata kedatangan per bulan.</p>
+
+            <div className="mt-5 space-y-4">
+              {monthlyTrend.map((item) => {
+                const value = item.avg_attendance || item.total_checkins || 0;
+
+                return (
+                  <div key={item.month}>
+                    <div className="mb-1 flex justify-between text-sm">
+                      <span className="font-bold text-slate-700">{formatAnalyticsMonth(item.month)}</span>
+                      <span className="font-black text-slate-950">{value}</span>
+                    </div>
+                    <div className="h-3 overflow-hidden rounded-full bg-orange-50">
+                      <div className="h-full rounded-full bg-slate-950" style={{ width: `${Math.max(4, (value / maxMonthly) * 100)}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <Card>
+            <h3 className="text-xl font-black text-slate-950">Kehadiran per COOL</h3>
+            <p className="mt-1 text-sm text-slate-500">Total check-in 90 hari terakhir.</p>
+
+            <div className="mt-5 space-y-3">
+              {coolBreakdown.length === 0 ? (
+                <p className="rounded-2xl bg-orange-50 p-4 text-sm font-bold text-slate-500">Belum ada data COOL.</p>
+              ) : (
+                coolBreakdown.map((item) => (
+                  <div key={item.cool_group}>
+                    <div className="mb-1 flex justify-between gap-4 text-sm">
+                      <span className="font-black text-slate-950">{item.cool_group}</span>
+                      <span className="font-bold text-slate-500">{item.total_checkins} check-in · {item.unique_members} member</span>
+                    </div>
+                    <div className="h-3 overflow-hidden rounded-full bg-orange-50">
+                      <div className="h-full rounded-full bg-orange-500" style={{ width: `${Math.max(4, ((item.total_checkins || 0) / maxCool) * 100)}%` }} />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+
+          <Card>
+            <h3 className="text-xl font-black text-slate-950">Recent Sessions</h3>
+            <p className="mt-1 text-sm text-slate-500">12 ibadah terakhir.</p>
+
+            <div className="mt-5 space-y-2">
+              {recentSessions.map((item) => (
+                <div key={item.session_date} className="flex items-center justify-between rounded-2xl bg-orange-50 px-4 py-3">
+                  <div>
+                    <p className="font-black text-slate-950">{formatAnalyticsDate(item.session_date)}</p>
+                    <p className="text-xs font-bold text-slate-500">{item.title || "Ibadah BWC 1PM"}</p>
+                  </div>
+                  <p className="text-2xl font-black text-orange-600">{item.total_attendance}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <Card>
+            <h3 className="text-xl font-black text-slate-950">Mulai Jarang Hadir</h3>
+            <p className="mt-1 text-sm text-slate-500">Member yang kedatangannya turun dibanding 30 hari sebelumnya.</p>
+
+            <div className="mt-5 space-y-3">
+              {decliningMembers.length === 0 ? (
+                <p className="rounded-2xl bg-green-50 p-4 text-sm font-bold text-green-700">Belum ada penurunan signifikan yang terdeteksi.</p>
+              ) : (
+                decliningMembers.slice(0, 20).map((member) => (
+                  <div key={member.member_id} className="flex items-center gap-3 rounded-2xl border border-orange-100 p-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-orange-50 text-xs font-black text-orange-600">
+                      {member.photo_url ? (
+                        <img src={member.photo_url} alt={member.full_name} className="h-full w-full object-cover" />
+                      ) : (
+                        <span>{getInitials(member.full_name)}</span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-black text-slate-950">{member.full_name}</p>
+                      <p className="text-xs text-slate-500">{member.cool_group} · Last seen {formatAnalyticsDate(member.last_seen)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-red-600">{member.previous_30_days} → {member.last_30_days}</p>
+                      <p className="text-xs font-bold text-slate-400">30 hari</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+
+          <Card>
+            <h3 className="text-xl font-black text-slate-950">Perlu Follow-up</h3>
+            <p className="mt-1 text-sm text-slate-500">Tidak hadir 30–90 hari, sangat jarang, atau belum ada riwayat.</p>
+
+            <div className="mt-5 max-h-[620px] space-y-3 overflow-auto pr-1">
+              {atRiskMembers.length === 0 ? (
+                <p className="rounded-2xl bg-green-50 p-4 text-sm font-bold text-green-700">Tidak ada member at-risk.</p>
+              ) : (
+                atRiskMembers.slice(0, 50).map((member) => (
+                  <div key={member.member_id} className="rounded-2xl border border-orange-100 p-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-orange-50 text-xs font-black text-orange-600">
+                        {member.photo_url ? (
+                          <img src={member.photo_url} alt={member.full_name} className="h-full w-full object-cover" />
+                        ) : (
+                          <span>{getInitials(member.full_name)}</span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-black text-slate-950">{member.full_name}</p>
+                        <p className="text-xs text-slate-500">{member.cool_group} · {member.phone || "-"}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-700">{riskStatusLabel(member.risk_status)}</span>
+                      <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">90d: {member.last_90_days}</span>
+                      <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">Last: {formatAnalyticsDate(member.last_seen)}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+        </div>
+      </section>
+    );
+  };
+
 
   if (!session) return;
 
@@ -1714,6 +1955,287 @@ export default function Home() {
     setMessage(`${member.full_name} berhasil check-in.`);
   }
 
+
+  const BwcAnalyticsDashboardFixed = () => {
+    const data = bwcAnalytics;
+    const weeklyTrend = data?.weekly_trend || [];
+    const monthlyTrend = data?.monthly_trend || [];
+    const coolBreakdown = data?.cool_breakdown || [];
+    const decliningMembers = data?.declining_members || [];
+    const atRiskMembers = data?.at_risk_members || [];
+    const recentSessions = data?.recent_sessions || [];
+
+    const maxWeekly = Math.max(1, ...weeklyTrend.map((item) => item.total_attendance || 0));
+    const maxMonthly = Math.max(1, ...monthlyTrend.map((item) => item.avg_attendance || item.total_checkins || 0));
+    const maxCool = Math.max(1, ...coolBreakdown.map((item) => item.total_checkins || 0));
+
+    const formatDate = (value?: string | null) => {
+      if (!value) return "-";
+
+      try {
+        return new Intl.DateTimeFormat("id-ID", {
+          day: "2-digit",
+          month: "short",
+        }).format(new Date(`${value}T00:00:00`));
+      } catch {
+        return value || "-";
+      }
+    };
+
+    const formatMonth = (value?: string | null) => {
+      if (!value) return "-";
+
+      try {
+        return new Intl.DateTimeFormat("id-ID", {
+          month: "short",
+          year: "2-digit",
+        }).format(new Date(`${value}-01T00:00:00`));
+      } catch {
+        return value || "-";
+      }
+    };
+
+    const riskLabel = (value?: string) => {
+      const labels: Record<string, string> = {
+        belum_ada_riwayat: "Belum ada riwayat",
+        tidak_hadir_90_hari: "Tidak hadir 90+ hari",
+        tidak_hadir_60_hari: "Tidak hadir 60+ hari",
+        tidak_hadir_30_hari: "Tidak hadir 30+ hari",
+        sangat_jarang_90_hari: "Sangat jarang 90 hari",
+        perlu_diperhatikan: "Perlu diperhatikan",
+      };
+
+      return labels[value || ""] || "Perlu dicek";
+    };
+
+    if (analyticsLoading && !data) {
+      return (
+        <Card>
+          <p className="text-lg font-black text-slate-950">Loading analytics...</p>
+          <p className="mt-1 text-sm text-slate-500">Sedang mengambil data kehadiran BWC.</p>
+        </Card>
+      );
+    }
+
+    if (!data) {
+      return (
+        <Card>
+          <div className="rounded-3xl border border-dashed border-orange-200 bg-orange-50 p-8 text-center">
+            <p className="text-2xl font-black text-slate-950">Belum ada analytics yang dimuat</p>
+            <p className="mt-2 text-sm text-slate-500">Klik tombol refresh untuk mengambil data absensi terbaru.</p>
+            <button
+              onClick={fetchBwcAnalytics}
+              className="mt-5 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-black text-white"
+            >
+              Load Analytics
+            </button>
+          </div>
+        </Card>
+      );
+    }
+
+    return (
+      <section className="space-y-6">
+        <div className="rounded-[2rem] bg-gradient-to-br from-slate-950 to-slate-800 p-6 text-white shadow-xl">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-300">BWC Attendance Analytics</p>
+              <h2 className="mt-3 text-4xl font-black">Dashboard Kehadiran</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300">
+                Pantau tren kedatangan, performa per COOL, dan member yang mulai jarang hadir dalam 1–3 bulan terakhir.
+              </p>
+            </div>
+            <button
+              onClick={fetchBwcAnalytics}
+              className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950"
+            >
+              {analyticsLoading ? "Refreshing..." : "Refresh Data"}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card>
+            <p className="text-sm text-slate-500">Last Attendance</p>
+            <p className="mt-2 text-4xl font-black text-slate-950">{data.overview?.last_session_attendance || 0}</p>
+            <p className="mt-1 text-xs font-bold text-slate-400">{formatDate(data.overview?.last_session_date)}</p>
+          </Card>
+          <Card>
+            <p className="text-sm text-slate-500">Average / Ibadah</p>
+            <p className="mt-2 text-4xl font-black text-slate-950">{data.overview?.avg_attendance || 0}</p>
+            <p className="mt-1 text-xs font-bold text-slate-400">Last {data.overview?.months || 6} months</p>
+          </Card>
+          <Card>
+            <p className="text-sm text-slate-500">Unique 30 Hari</p>
+            <p className="mt-2 text-4xl font-black text-slate-950">{data.overview?.unique_attendees_30d || 0}</p>
+            <p className="mt-1 text-xs font-bold text-slate-400">Member hadir 30 hari terakhir</p>
+          </Card>
+          <Card>
+            <p className="text-sm text-slate-500">At Risk</p>
+            <p className="mt-2 text-4xl font-black text-slate-950">{atRiskMembers.length}</p>
+            <p className="mt-1 text-xs font-bold text-slate-400">Perlu follow-up</p>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+          <Card>
+            <h3 className="text-xl font-black text-slate-950">Trend Kedatangan Mingguan</h3>
+            <p className="mt-1 text-sm text-slate-500">Jumlah check-in per ibadah BWC 1PM.</p>
+
+            <div className="mt-5 flex h-72 items-end gap-2 overflow-x-auto rounded-3xl bg-orange-50 p-4">
+              {weeklyTrend.slice(-20).map((item) => (
+                <div key={item.session_date} className="flex h-full min-w-[42px] flex-col items-center justify-end gap-2">
+                  <div className="text-xs font-black text-slate-700">{item.total_attendance}</div>
+                  <div
+                    className="w-full rounded-t-2xl bg-orange-500"
+                    style={{ height: `${Math.max(8, ((item.total_attendance || 0) / maxWeekly) * 210)}px` }}
+                    title={`${formatDate(item.session_date)}: ${item.total_attendance}`}
+                  />
+                  <div className="-rotate-45 whitespace-nowrap text-[10px] font-bold text-slate-400">
+                    {formatDate(item.session_date)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card>
+            <h3 className="text-xl font-black text-slate-950">Monthly Average</h3>
+            <p className="mt-1 text-sm text-slate-500">Rata-rata kedatangan per bulan.</p>
+
+            <div className="mt-5 space-y-4">
+              {monthlyTrend.map((item) => {
+                const value = item.avg_attendance || item.total_checkins || 0;
+
+                return (
+                  <div key={item.month}>
+                    <div className="mb-1 flex justify-between text-sm">
+                      <span className="font-bold text-slate-700">{formatMonth(item.month)}</span>
+                      <span className="font-black text-slate-950">{value}</span>
+                    </div>
+                    <div className="h-3 overflow-hidden rounded-full bg-orange-50">
+                      <div className="h-full rounded-full bg-slate-950" style={{ width: `${Math.max(4, (value / maxMonthly) * 100)}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <Card>
+            <h3 className="text-xl font-black text-slate-950">Kehadiran per COOL</h3>
+            <p className="mt-1 text-sm text-slate-500">Total check-in 90 hari terakhir.</p>
+
+            <div className="mt-5 space-y-3">
+              {coolBreakdown.length === 0 ? (
+                <p className="rounded-2xl bg-orange-50 p-4 text-sm font-bold text-slate-500">Belum ada data COOL.</p>
+              ) : (
+                coolBreakdown.map((item) => (
+                  <div key={item.cool_group}>
+                    <div className="mb-1 flex justify-between gap-4 text-sm">
+                      <span className="font-black text-slate-950">{item.cool_group}</span>
+                      <span className="font-bold text-slate-500">{item.total_checkins} check-in · {item.unique_members} member</span>
+                    </div>
+                    <div className="h-3 overflow-hidden rounded-full bg-orange-50">
+                      <div className="h-full rounded-full bg-orange-500" style={{ width: `${Math.max(4, ((item.total_checkins || 0) / maxCool) * 100)}%` }} />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+
+          <Card>
+            <h3 className="text-xl font-black text-slate-950">Recent Sessions</h3>
+            <p className="mt-1 text-sm text-slate-500">12 ibadah terakhir.</p>
+
+            <div className="mt-5 space-y-2">
+              {recentSessions.map((item) => (
+                <div key={item.session_date} className="flex items-center justify-between rounded-2xl bg-orange-50 px-4 py-3">
+                  <div>
+                    <p className="font-black text-slate-950">{formatDate(item.session_date)}</p>
+                    <p className="text-xs font-bold text-slate-500">{item.title || "Ibadah BWC 1PM"}</p>
+                  </div>
+                  <p className="text-2xl font-black text-orange-600">{item.total_attendance}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <Card>
+            <h3 className="text-xl font-black text-slate-950">Mulai Jarang Hadir</h3>
+            <p className="mt-1 text-sm text-slate-500">Member yang kedatangannya turun dibanding 30 hari sebelumnya.</p>
+
+            <div className="mt-5 space-y-3">
+              {decliningMembers.length === 0 ? (
+                <p className="rounded-2xl bg-green-50 p-4 text-sm font-bold text-green-700">Belum ada penurunan signifikan yang terdeteksi.</p>
+              ) : (
+                decliningMembers.slice(0, 20).map((member) => (
+                  <div key={member.member_id} className="flex items-center gap-3 rounded-2xl border border-orange-100 p-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-orange-50 text-xs font-black text-orange-600">
+                      {member.photo_url ? (
+                        <img src={member.photo_url} alt={member.full_name} className="h-full w-full object-cover" />
+                      ) : (
+                        <span>{getInitials(member.full_name)}</span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-black text-slate-950">{member.full_name}</p>
+                      <p className="text-xs text-slate-500">{member.cool_group} · Last seen {formatDate(member.last_seen)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-red-600">{member.previous_30_days} → {member.last_30_days}</p>
+                      <p className="text-xs font-bold text-slate-400">30 hari</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+
+          <Card>
+            <h3 className="text-xl font-black text-slate-950">Perlu Follow-up</h3>
+            <p className="mt-1 text-sm text-slate-500">Tidak hadir 30–90 hari, sangat jarang, atau belum ada riwayat.</p>
+
+            <div className="mt-5 max-h-[620px] space-y-3 overflow-auto pr-1">
+              {atRiskMembers.length === 0 ? (
+                <p className="rounded-2xl bg-green-50 p-4 text-sm font-bold text-green-700">Tidak ada member at-risk.</p>
+              ) : (
+                atRiskMembers.slice(0, 50).map((member) => (
+                  <div key={member.member_id} className="rounded-2xl border border-orange-100 p-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-orange-50 text-xs font-black text-orange-600">
+                        {member.photo_url ? (
+                          <img src={member.photo_url} alt={member.full_name} className="h-full w-full object-cover" />
+                        ) : (
+                          <span>{getInitials(member.full_name)}</span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-black text-slate-950">{member.full_name}</p>
+                        <p className="text-xs text-slate-500">{member.cool_group} · {member.phone || "-"}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-700">{riskLabel(member.risk_status)}</span>
+                      <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">90d: {member.last_90_days}</span>
+                      <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">Last: {formatDate(member.last_seen)}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+        </div>
+      </section>
+    );
+  };
+
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-orange-50">
@@ -2474,7 +2996,230 @@ export default function Home() {
 
 
 
-          {memberTab === "analytics" && renderBwcAnalyticsDashboard()}
+          {memberTab === "analytics" && (
+            <section className="space-y-6">
+              <div className="rounded-[2rem] bg-gradient-to-br from-slate-950 to-slate-800 p-6 text-white shadow-xl">
+                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                  <div>
+                    <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-300">BWC Attendance Analytics</p>
+                    <h2 className="mt-3 text-4xl font-black">Dashboard Kehadiran</h2>
+                    <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300">
+                      Pantau tren kedatangan, performa COOL, dan member yang mulai jarang hadir.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={fetchBwcAnalytics}
+                    className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950"
+                  >
+                    {analyticsLoading ? "Refreshing..." : "Refresh Data"}
+                  </button>
+                </div>
+              </div>
+
+              {!bwcAnalytics ? (
+                <Card>
+                  <div className="rounded-3xl border border-dashed border-orange-200 bg-orange-50 p-8 text-center">
+                    <p className="text-2xl font-black text-slate-950">
+                      {analyticsLoading ? "Loading analytics..." : "Belum ada analytics yang dimuat"}
+                    </p>
+                    <p className="mt-2 text-sm text-slate-500">
+                      Klik tombol refresh untuk mengambil data absensi terbaru.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={fetchBwcAnalytics}
+                      className="mt-5 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-black text-white"
+                    >
+                      Load Analytics
+                    </button>
+                  </div>
+                </Card>
+              ) : (
+                <>
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <Card>
+                      <p className="text-sm text-slate-500">Last Attendance</p>
+                      <p className="mt-2 text-4xl font-black text-slate-950">{bwcAnalytics.overview?.last_session_attendance || 0}</p>
+                      <p className="mt-1 text-xs font-bold text-slate-400">{bwcAnalytics.overview?.last_session_date || "-"}</p>
+                    </Card>
+                    <Card>
+                      <p className="text-sm text-slate-500">Average / Ibadah</p>
+                      <p className="mt-2 text-4xl font-black text-slate-950">{bwcAnalytics.overview?.avg_attendance || 0}</p>
+                      <p className="mt-1 text-xs font-bold text-slate-400">Last {bwcAnalytics.overview?.months || 6} months</p>
+                    </Card>
+                    <Card>
+                      <p className="text-sm text-slate-500">Unique 30 Hari</p>
+                      <p className="mt-2 text-4xl font-black text-slate-950">{bwcAnalytics.overview?.unique_attendees_30d || 0}</p>
+                      <p className="mt-1 text-xs font-bold text-slate-400">Member hadir 30 hari terakhir</p>
+                    </Card>
+                    <Card>
+                      <p className="text-sm text-slate-500">At Risk</p>
+                      <p className="mt-2 text-4xl font-black text-slate-950">{bwcAnalytics.at_risk_members?.length || 0}</p>
+                      <p className="mt-1 text-xs font-bold text-slate-400">Perlu follow-up</p>
+                    </Card>
+                  </div>
+
+                  <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+                    <Card>
+                      <h3 className="text-xl font-black text-slate-950">Trend Kedatangan Mingguan</h3>
+                      <p className="mt-1 text-sm text-slate-500">Jumlah check-in per ibadah BWC 1PM.</p>
+
+                      <div className="mt-5 space-y-3">
+                        {(bwcAnalytics.weekly_trend || []).slice(-16).map((item) => (
+                          <div key={item.session_date || item.title}>
+                            <div className="mb-1 flex justify-between text-sm">
+                              <span className="font-bold text-slate-700">{item.session_date}</span>
+                              <span className="font-black text-slate-950">{item.total_attendance}</span>
+                            </div>
+                            <div className="h-3 overflow-hidden rounded-full bg-orange-50">
+                              <div
+                                className="h-full rounded-full bg-orange-500"
+                                style={{ width: `${Math.max(4, Math.min(100, (item.total_attendance || 0)))}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+
+                    <Card>
+                      <h3 className="text-xl font-black text-slate-950">Monthly Average</h3>
+                      <p className="mt-1 text-sm text-slate-500">Rata-rata kedatangan per bulan.</p>
+
+                      <div className="mt-5 space-y-4">
+                        {(bwcAnalytics.monthly_trend || []).map((item) => {
+                          const value = item.avg_attendance || item.total_checkins || 0;
+
+                          return (
+                            <div key={item.month}>
+                              <div className="mb-1 flex justify-between text-sm">
+                                <span className="font-bold text-slate-700">{item.month}</span>
+                                <span className="font-black text-slate-950">{value}</span>
+                              </div>
+                              <div className="h-3 overflow-hidden rounded-full bg-orange-50">
+                                <div className="h-full rounded-full bg-slate-950" style={{ width: `${Math.max(4, Math.min(100, value))}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </Card>
+                  </div>
+
+                  <div className="grid gap-6 xl:grid-cols-2">
+                    <Card>
+                      <h3 className="text-xl font-black text-slate-950">Kehadiran per COOL</h3>
+                      <p className="mt-1 text-sm text-slate-500">Total check-in 90 hari terakhir.</p>
+
+                      <div className="mt-5 space-y-3">
+                        {(bwcAnalytics.cool_breakdown || []).length === 0 ? (
+                          <p className="rounded-2xl bg-orange-50 p-4 text-sm font-bold text-slate-500">Belum ada data COOL.</p>
+                        ) : (
+                          (bwcAnalytics.cool_breakdown || []).map((item) => (
+                            <div key={item.cool_group} className="rounded-2xl bg-orange-50 p-4">
+                              <div className="flex justify-between gap-4 text-sm">
+                                <span className="font-black text-slate-950">{item.cool_group}</span>
+                                <span className="font-bold text-slate-500">{item.total_checkins} check-in · {item.unique_members} member</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </Card>
+
+                    <Card>
+                      <h3 className="text-xl font-black text-slate-950">Recent Sessions</h3>
+                      <p className="mt-1 text-sm text-slate-500">12 ibadah terakhir.</p>
+
+                      <div className="mt-5 space-y-2">
+                        {(bwcAnalytics.recent_sessions || []).map((item) => (
+                          <div key={item.session_date} className="flex items-center justify-between rounded-2xl bg-orange-50 px-4 py-3">
+                            <div>
+                              <p className="font-black text-slate-950">{item.session_date}</p>
+                              <p className="text-xs font-bold text-slate-500">{item.title || "Ibadah BWC 1PM"}</p>
+                            </div>
+                            <p className="text-2xl font-black text-orange-600">{item.total_attendance}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  </div>
+
+                  <div className="grid gap-6 xl:grid-cols-2">
+                    <Card>
+                      <h3 className="text-xl font-black text-slate-950">Mulai Jarang Hadir</h3>
+                      <p className="mt-1 text-sm text-slate-500">Member yang kedatangannya turun dibanding 30 hari sebelumnya.</p>
+
+                      <div className="mt-5 max-h-[620px] space-y-3 overflow-auto pr-1">
+                        {(bwcAnalytics.declining_members || []).length === 0 ? (
+                          <p className="rounded-2xl bg-green-50 p-4 text-sm font-bold text-green-700">
+                            Belum ada penurunan signifikan yang terdeteksi.
+                          </p>
+                        ) : (
+                          (bwcAnalytics.declining_members || []).slice(0, 30).map((member) => (
+                            <div key={member.member_id} className="flex items-center gap-3 rounded-2xl border border-orange-100 p-3">
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-orange-50 text-xs font-black text-orange-600">
+                                {member.photo_url ? (
+                                  <img src={member.photo_url} alt={member.full_name} className="h-full w-full object-cover" />
+                                ) : (
+                                  <span>{getInitials(member.full_name)}</span>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate font-black text-slate-950">{member.full_name}</p>
+                                <p className="text-xs text-slate-500">{member.cool_group} · Last seen {member.last_seen || "-"}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-black text-red-600">{member.previous_30_days} → {member.last_30_days}</p>
+                                <p className="text-xs font-bold text-slate-400">30 hari</p>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </Card>
+
+                    <Card>
+                      <h3 className="text-xl font-black text-slate-950">Perlu Follow-up</h3>
+                      <p className="mt-1 text-sm text-slate-500">Tidak hadir 30–90 hari, sangat jarang, atau belum ada riwayat.</p>
+
+                      <div className="mt-5 max-h-[620px] space-y-3 overflow-auto pr-1">
+                        {(bwcAnalytics.at_risk_members || []).length === 0 ? (
+                          <p className="rounded-2xl bg-green-50 p-4 text-sm font-bold text-green-700">Tidak ada member at-risk.</p>
+                        ) : (
+                          (bwcAnalytics.at_risk_members || []).slice(0, 50).map((member) => (
+                            <div key={member.member_id} className="rounded-2xl border border-orange-100 p-3">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-orange-50 text-xs font-black text-orange-600">
+                                  {member.photo_url ? (
+                                    <img src={member.photo_url} alt={member.full_name} className="h-full w-full object-cover" />
+                                  ) : (
+                                    <span>{getInitials(member.full_name)}</span>
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate font-black text-slate-950">{member.full_name}</p>
+                                  <p className="text-xs text-slate-500">{member.cool_group} · {member.phone || "-"}</p>
+                                </div>
+                              </div>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-700">
+                                  {member.risk_status || "perlu_diperhatikan"}
+                                </span>
+                                <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">90d: {member.last_90_days}</span>
+                                <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">Last: {member.last_seen || "-"}</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </Card>
+                  </div>
+                </>
+              )}
+            </section>
+          )}
 
           {memberTab === "scan" && (
             <section className="grid gap-6 lg:grid-cols-[420px_1fr]">
@@ -3207,7 +3952,230 @@ export default function Home() {
 
 
 
-          {activeTab === "analytics" && renderBwcAnalyticsDashboard()}
+          {activeTab === "analytics" && (
+            <section className="space-y-6">
+              <div className="rounded-[2rem] bg-gradient-to-br from-slate-950 to-slate-800 p-6 text-white shadow-xl">
+                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                  <div>
+                    <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-300">BWC Attendance Analytics</p>
+                    <h2 className="mt-3 text-4xl font-black">Dashboard Kehadiran</h2>
+                    <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300">
+                      Pantau tren kedatangan, performa COOL, dan member yang mulai jarang hadir.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={fetchBwcAnalytics}
+                    className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950"
+                  >
+                    {analyticsLoading ? "Refreshing..." : "Refresh Data"}
+                  </button>
+                </div>
+              </div>
+
+              {!bwcAnalytics ? (
+                <Card>
+                  <div className="rounded-3xl border border-dashed border-orange-200 bg-orange-50 p-8 text-center">
+                    <p className="text-2xl font-black text-slate-950">
+                      {analyticsLoading ? "Loading analytics..." : "Belum ada analytics yang dimuat"}
+                    </p>
+                    <p className="mt-2 text-sm text-slate-500">
+                      Klik tombol refresh untuk mengambil data absensi terbaru.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={fetchBwcAnalytics}
+                      className="mt-5 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-black text-white"
+                    >
+                      Load Analytics
+                    </button>
+                  </div>
+                </Card>
+              ) : (
+                <>
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <Card>
+                      <p className="text-sm text-slate-500">Last Attendance</p>
+                      <p className="mt-2 text-4xl font-black text-slate-950">{bwcAnalytics.overview?.last_session_attendance || 0}</p>
+                      <p className="mt-1 text-xs font-bold text-slate-400">{bwcAnalytics.overview?.last_session_date || "-"}</p>
+                    </Card>
+                    <Card>
+                      <p className="text-sm text-slate-500">Average / Ibadah</p>
+                      <p className="mt-2 text-4xl font-black text-slate-950">{bwcAnalytics.overview?.avg_attendance || 0}</p>
+                      <p className="mt-1 text-xs font-bold text-slate-400">Last {bwcAnalytics.overview?.months || 6} months</p>
+                    </Card>
+                    <Card>
+                      <p className="text-sm text-slate-500">Unique 30 Hari</p>
+                      <p className="mt-2 text-4xl font-black text-slate-950">{bwcAnalytics.overview?.unique_attendees_30d || 0}</p>
+                      <p className="mt-1 text-xs font-bold text-slate-400">Member hadir 30 hari terakhir</p>
+                    </Card>
+                    <Card>
+                      <p className="text-sm text-slate-500">At Risk</p>
+                      <p className="mt-2 text-4xl font-black text-slate-950">{bwcAnalytics.at_risk_members?.length || 0}</p>
+                      <p className="mt-1 text-xs font-bold text-slate-400">Perlu follow-up</p>
+                    </Card>
+                  </div>
+
+                  <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+                    <Card>
+                      <h3 className="text-xl font-black text-slate-950">Trend Kedatangan Mingguan</h3>
+                      <p className="mt-1 text-sm text-slate-500">Jumlah check-in per ibadah BWC 1PM.</p>
+
+                      <div className="mt-5 space-y-3">
+                        {(bwcAnalytics.weekly_trend || []).slice(-16).map((item) => (
+                          <div key={item.session_date || item.title}>
+                            <div className="mb-1 flex justify-between text-sm">
+                              <span className="font-bold text-slate-700">{item.session_date}</span>
+                              <span className="font-black text-slate-950">{item.total_attendance}</span>
+                            </div>
+                            <div className="h-3 overflow-hidden rounded-full bg-orange-50">
+                              <div
+                                className="h-full rounded-full bg-orange-500"
+                                style={{ width: `${Math.max(4, Math.min(100, (item.total_attendance || 0)))}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+
+                    <Card>
+                      <h3 className="text-xl font-black text-slate-950">Monthly Average</h3>
+                      <p className="mt-1 text-sm text-slate-500">Rata-rata kedatangan per bulan.</p>
+
+                      <div className="mt-5 space-y-4">
+                        {(bwcAnalytics.monthly_trend || []).map((item) => {
+                          const value = item.avg_attendance || item.total_checkins || 0;
+
+                          return (
+                            <div key={item.month}>
+                              <div className="mb-1 flex justify-between text-sm">
+                                <span className="font-bold text-slate-700">{item.month}</span>
+                                <span className="font-black text-slate-950">{value}</span>
+                              </div>
+                              <div className="h-3 overflow-hidden rounded-full bg-orange-50">
+                                <div className="h-full rounded-full bg-slate-950" style={{ width: `${Math.max(4, Math.min(100, value))}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </Card>
+                  </div>
+
+                  <div className="grid gap-6 xl:grid-cols-2">
+                    <Card>
+                      <h3 className="text-xl font-black text-slate-950">Kehadiran per COOL</h3>
+                      <p className="mt-1 text-sm text-slate-500">Total check-in 90 hari terakhir.</p>
+
+                      <div className="mt-5 space-y-3">
+                        {(bwcAnalytics.cool_breakdown || []).length === 0 ? (
+                          <p className="rounded-2xl bg-orange-50 p-4 text-sm font-bold text-slate-500">Belum ada data COOL.</p>
+                        ) : (
+                          (bwcAnalytics.cool_breakdown || []).map((item) => (
+                            <div key={item.cool_group} className="rounded-2xl bg-orange-50 p-4">
+                              <div className="flex justify-between gap-4 text-sm">
+                                <span className="font-black text-slate-950">{item.cool_group}</span>
+                                <span className="font-bold text-slate-500">{item.total_checkins} check-in · {item.unique_members} member</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </Card>
+
+                    <Card>
+                      <h3 className="text-xl font-black text-slate-950">Recent Sessions</h3>
+                      <p className="mt-1 text-sm text-slate-500">12 ibadah terakhir.</p>
+
+                      <div className="mt-5 space-y-2">
+                        {(bwcAnalytics.recent_sessions || []).map((item) => (
+                          <div key={item.session_date} className="flex items-center justify-between rounded-2xl bg-orange-50 px-4 py-3">
+                            <div>
+                              <p className="font-black text-slate-950">{item.session_date}</p>
+                              <p className="text-xs font-bold text-slate-500">{item.title || "Ibadah BWC 1PM"}</p>
+                            </div>
+                            <p className="text-2xl font-black text-orange-600">{item.total_attendance}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  </div>
+
+                  <div className="grid gap-6 xl:grid-cols-2">
+                    <Card>
+                      <h3 className="text-xl font-black text-slate-950">Mulai Jarang Hadir</h3>
+                      <p className="mt-1 text-sm text-slate-500">Member yang kedatangannya turun dibanding 30 hari sebelumnya.</p>
+
+                      <div className="mt-5 max-h-[620px] space-y-3 overflow-auto pr-1">
+                        {(bwcAnalytics.declining_members || []).length === 0 ? (
+                          <p className="rounded-2xl bg-green-50 p-4 text-sm font-bold text-green-700">
+                            Belum ada penurunan signifikan yang terdeteksi.
+                          </p>
+                        ) : (
+                          (bwcAnalytics.declining_members || []).slice(0, 30).map((member) => (
+                            <div key={member.member_id} className="flex items-center gap-3 rounded-2xl border border-orange-100 p-3">
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-orange-50 text-xs font-black text-orange-600">
+                                {member.photo_url ? (
+                                  <img src={member.photo_url} alt={member.full_name} className="h-full w-full object-cover" />
+                                ) : (
+                                  <span>{getInitials(member.full_name)}</span>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate font-black text-slate-950">{member.full_name}</p>
+                                <p className="text-xs text-slate-500">{member.cool_group} · Last seen {member.last_seen || "-"}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-black text-red-600">{member.previous_30_days} → {member.last_30_days}</p>
+                                <p className="text-xs font-bold text-slate-400">30 hari</p>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </Card>
+
+                    <Card>
+                      <h3 className="text-xl font-black text-slate-950">Perlu Follow-up</h3>
+                      <p className="mt-1 text-sm text-slate-500">Tidak hadir 30–90 hari, sangat jarang, atau belum ada riwayat.</p>
+
+                      <div className="mt-5 max-h-[620px] space-y-3 overflow-auto pr-1">
+                        {(bwcAnalytics.at_risk_members || []).length === 0 ? (
+                          <p className="rounded-2xl bg-green-50 p-4 text-sm font-bold text-green-700">Tidak ada member at-risk.</p>
+                        ) : (
+                          (bwcAnalytics.at_risk_members || []).slice(0, 50).map((member) => (
+                            <div key={member.member_id} className="rounded-2xl border border-orange-100 p-3">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-orange-50 text-xs font-black text-orange-600">
+                                  {member.photo_url ? (
+                                    <img src={member.photo_url} alt={member.full_name} className="h-full w-full object-cover" />
+                                  ) : (
+                                    <span>{getInitials(member.full_name)}</span>
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate font-black text-slate-950">{member.full_name}</p>
+                                  <p className="text-xs text-slate-500">{member.cool_group} · {member.phone || "-"}</p>
+                                </div>
+                              </div>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-700">
+                                  {member.risk_status || "perlu_diperhatikan"}
+                                </span>
+                                <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">90d: {member.last_90_days}</span>
+                                <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">Last: {member.last_seen || "-"}</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </Card>
+                  </div>
+                </>
+              )}
+            </section>
+          )}
 
           {activeTab === "events" && (
             <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
