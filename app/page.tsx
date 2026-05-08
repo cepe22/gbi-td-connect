@@ -83,6 +83,28 @@ type BwcScanResult = {
   total_attendance: number;
 };
 
+type AdminProfileViewerData = {
+  member: Member;
+  ministries: {
+    department_id: string;
+    department_name: string;
+    role: string;
+    source_note: string | null;
+    is_active: boolean;
+  }[];
+  attendance_summary: {
+    total_attendance?: number;
+    last_checkin?: string | null;
+  };
+  recent_attendance: {
+    record_id: string;
+    checked_in_at: string;
+    session_title: string;
+    session_type: string | null;
+    session_date: string;
+  }[];
+};
+
 type AttendanceSession = {
   id: string;
   title: string;
@@ -184,11 +206,14 @@ export default function Home() {
   const scanLockRef = useRef(false);
 
   const [members, setMembers] = useState<Member[]>([]);
+  const [adminProfileSearch, setAdminProfileSearch] = useState("");
+  const [adminProfileData, setAdminProfileData] = useState<AdminProfileViewerData | null>(null);
+  const [adminProfileLoading, setAdminProfileLoading] = useState(false);
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
   const [myMinistries, setMyMinistries] = useState<MyMinistry[]>([]);
   const [departmentOverview, setDepartmentOverview] = useState<DepartmentOverview[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "scanner">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "profileViewer" | "scanner">("dashboard");
   const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "scan" | "profile">("home");
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(true);
@@ -235,6 +260,27 @@ export default function Home() {
       ["need_follow_up", "rarely_attend", "inactive"].includes(member.attendance_status)
     );
   }, [members]);
+
+  const filteredAdminProfileMembers = useMemo(() => {
+    const keyword = adminProfileSearch.trim().toLowerCase();
+
+    if (!keyword) return members.slice(0, 80);
+
+    return members
+      .filter((member) =>
+        [
+          member.full_name,
+          member.nickname || "",
+          member.member_code,
+          member.phone || "",
+          member.email || "",
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(keyword)
+      )
+      .slice(0, 80);
+  }, [members, adminProfileSearch]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -932,6 +978,44 @@ export default function Home() {
 
     if (!selectedDepartmentId && overview.length > 0) {
       setSelectedDepartmentId(overview[0].department_id);
+    }
+  }
+
+  async function fetchAdminMemberProfile(memberId: string) {
+    try {
+      setAdminProfileLoading(true);
+      setMessage("");
+
+      const { data, error } = await supabase.rpc("admin_get_member_profile", {
+        input_member_id: memberId,
+      });
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      const result = Array.isArray(data) ? data[0] : data;
+      setAdminProfileData((result || null) as AdminProfileViewerData | null);
+      setActiveTab("profileViewer");
+    } finally {
+      setAdminProfileLoading(false);
+    }
+  }
+
+  function formatAdminDateTime(value?: string | null) {
+    if (!value) return "-";
+
+    try {
+      return new Intl.DateTimeFormat("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(value));
+    } catch {
+      return "-";
     }
   }
 
@@ -1983,6 +2067,7 @@ export default function Home() {
               { id: "dashboard", label: "Dashboard", icon: "📊" },
               { id: "members", label: "Database Jemaat", icon: "👥" },
               { id: "departments", label: "Departemen", icon: "🧩" },
+              { id: "profileViewer", label: "Lihat Profil", icon: "👁️" },
               { id: "scanner", label: "QR Scanner", icon: "📷" },
             ].map((item) => (
               <button
@@ -2205,6 +2290,193 @@ export default function Home() {
                   );
                 })()}
               </Card>
+            </div>
+          )}
+
+
+
+          {activeTab === "profileViewer" && (
+            <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
+              <Card className="h-fit">
+                <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">Admin Read-Only</p>
+                <h2 className="mt-3 text-2xl font-black text-slate-950">Lihat Profil Member</h2>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                  Admin bisa membuka profil member untuk pengecekan tampilan dan data, tanpa mengedit data apa pun.
+                </p>
+
+                <input
+                  value={adminProfileSearch}
+                  onChange={(e) => setAdminProfileSearch(e.target.value)}
+                  className="mt-5 w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                  placeholder="Cari nama, member code, phone, email..."
+                />
+
+                <div className="mt-4 max-h-[560px] space-y-2 overflow-auto pr-1">
+                  {filteredAdminProfileMembers.map((member) => (
+                    <button
+                      key={member.id}
+                      onClick={() => fetchAdminMemberProfile(member.id)}
+                      className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition ${
+                        adminProfileData?.member?.id === member.id ? "bg-orange-500 text-white" : "bg-orange-50 text-slate-800 hover:bg-orange-100"
+                      }`}
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white text-xs font-black text-orange-600">
+                        {member.photo_url ? (
+                          <img src={member.photo_url} alt={member.full_name} className="h-full w-full object-cover" />
+                        ) : (
+                          <span>{getInitials(member.full_name)}</span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-black">{member.full_name}</p>
+                        <p className={`text-xs ${adminProfileData?.member?.id === member.id ? "text-white/75" : "text-slate-500"}`}>
+                          {member.member_code}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+
+                  {filteredAdminProfileMembers.length === 0 && (
+                    <div className="rounded-2xl bg-orange-50 p-4 text-sm font-bold text-slate-500">
+                      Tidak ada member ditemukan.
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              <div>
+                {adminProfileLoading ? (
+                  <Card>
+                    <p className="text-lg font-black text-slate-950">Loading profile...</p>
+                  </Card>
+                ) : !adminProfileData?.member ? (
+                  <Card>
+                    <div className="rounded-3xl border border-dashed border-orange-200 bg-orange-50 p-8 text-center">
+                      <p className="text-2xl font-black text-slate-950">Pilih member terlebih dahulu</p>
+                      <p className="mt-2 text-sm text-slate-500">
+                        Search nama/member code di kiri, lalu klik member untuk melihat profilnya.
+                      </p>
+                    </div>
+                  </Card>
+                ) : (
+                  <div className="space-y-6">
+                    <Card>
+                      <div className="flex flex-col gap-5 md:flex-row md:items-center">
+                        <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-[2rem] bg-orange-50 text-3xl font-black text-orange-600">
+                          {adminProfileData.member.photo_url ? (
+                            <img src={adminProfileData.member.photo_url} alt={adminProfileData.member.full_name} className="h-full w-full object-cover" />
+                          ) : (
+                            <span>{getInitials(adminProfileData.member.full_name)}</span>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">Member Profile Preview</p>
+                          <h2 className="mt-2 text-4xl font-black text-slate-950">{adminProfileData.member.full_name}</h2>
+                          <p className="mt-1 text-sm text-slate-500">{adminProfileData.member.email || "-"}</p>
+                        </div>
+
+                        <Badge tone={statusTone(adminProfileData.member.attendance_status || "active")}>
+                          {adminProfileData.member.attendance_status || "active"}
+                        </Badge>
+                      </div>
+
+                      <div className="mt-6 grid gap-3 md:grid-cols-4">
+                        <div className="rounded-2xl bg-orange-50 p-4">
+                          <p className="text-xs font-bold text-orange-700">Member Code</p>
+                          <p className="mt-1 text-lg font-black text-slate-950">{adminProfileData.member.member_code}</p>
+                        </div>
+                        <div className="rounded-2xl bg-orange-50 p-4">
+                          <p className="text-xs font-bold text-orange-700">QR Value</p>
+                          <p className="mt-1 text-lg font-black text-slate-950">{adminProfileData.member.qr_code_value}</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 p-4">
+                          <p className="text-xs font-bold text-slate-500">Phone</p>
+                          <p className="mt-1 text-lg font-black text-slate-950">{adminProfileData.member.phone || "-"}</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 p-4">
+                          <p className="text-xs font-bold text-slate-500">Birth Date</p>
+                          <p className="mt-1 text-lg font-black text-slate-950">{toDateInputValue(adminProfileData.member.birth_date) || "-"}</p>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <div className="grid gap-6 xl:grid-cols-2">
+                      <Card>
+                        <h3 className="text-xl font-black text-slate-950">Data Pribadi</h3>
+                        <div className="mt-4 space-y-3 text-sm">
+                          <div className="flex justify-between gap-4 rounded-2xl bg-orange-50 p-4">
+                            <span className="font-bold text-slate-500">Nickname</span>
+                            <span className="font-black text-slate-950">{adminProfileData.member.nickname || "-"}</span>
+                          </div>
+                          <div className="flex justify-between gap-4 rounded-2xl bg-orange-50 p-4">
+                            <span className="font-bold text-slate-500">Gender</span>
+                            <span className="font-black text-slate-950">{adminProfileData.member.gender || "-"}</span>
+                          </div>
+                          <div className="rounded-2xl bg-orange-50 p-4">
+                            <p className="font-bold text-slate-500">Alamat</p>
+                            <p className="mt-1 font-black text-slate-950">{adminProfileData.member.address || "-"}</p>
+                          </div>
+                        </div>
+                      </Card>
+
+                      <Card>
+                        <h3 className="text-xl font-black text-slate-950">Pelayanan</h3>
+                        <div className="mt-4 space-y-3">
+                          {adminProfileData.ministries.length === 0 ? (
+                            <div className="rounded-2xl bg-orange-50 p-4 text-sm font-bold text-slate-500">
+                              Belum ada pelayanan terdaftar.
+                            </div>
+                          ) : (
+                            adminProfileData.ministries.map((item) => (
+                              <div key={`${item.department_id}-${item.role}`} className="rounded-2xl bg-orange-50 p-4">
+                                <p className="text-lg font-black text-slate-950">{item.department_name}</p>
+                                <p className="text-sm font-bold text-slate-500">Role: {item.role || "member"}</p>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </Card>
+                    </div>
+
+                    <Card>
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <h3 className="text-xl font-black text-slate-950">Riwayat Absensi</h3>
+                          <p className="text-sm text-slate-500">
+                            Total check-in: {adminProfileData.attendance_summary?.total_attendance || 0}
+                          </p>
+                        </div>
+                        <p className="text-sm font-bold text-slate-500">
+                          Last: {formatAdminDateTime(adminProfileData.attendance_summary?.last_checkin)}
+                        </p>
+                      </div>
+
+                      <div className="mt-4 space-y-3">
+                        {adminProfileData.recent_attendance.length === 0 ? (
+                          <div className="rounded-2xl bg-orange-50 p-4 text-sm font-bold text-slate-500">
+                            Belum ada riwayat absensi.
+                          </div>
+                        ) : (
+                          adminProfileData.recent_attendance.map((record) => (
+                            <div key={record.record_id} className="flex items-center justify-between gap-4 rounded-2xl bg-orange-50 p-4">
+                              <div>
+                                <p className="font-black text-slate-950">{record.session_title}</p>
+                                <p className="text-xs text-slate-500">{record.session_date}</p>
+                              </div>
+                              <p className="text-sm font-bold text-slate-600">{formatAdminDateTime(record.checked_in_at)}</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </Card>
+
+                    <div className="rounded-3xl border border-orange-100 bg-white px-5 py-4 text-sm font-bold text-slate-500">
+                      Mode ini read-only. Admin hanya melihat data profil, pelayanan, dan riwayat absensi. Tidak ada perubahan data dari halaman ini.
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
