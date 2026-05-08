@@ -2837,6 +2837,7 @@ export default function Home() {
       { id: "schedule", label: "Schedule", icon: "🗓️" },
       { id: "cool", label: "COOL", icon: "🌱" },
       { id: "forum", label: "Forum", icon: "💬" },
+        { id: "contacts", label: "Contact", icon: "📩" },
       { id: "profile", label: "Profile", icon: "👤" },
     ] as const;
 
