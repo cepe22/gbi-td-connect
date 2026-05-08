@@ -21,7 +21,7 @@ type Member = {
   gender: string | null;
   address: string | null;
   created_at: string;
-  updated_at: string | null;
+  updated_at?: string | null;
 };
 
 type BwcPost = any;
@@ -692,7 +692,7 @@ export default function Home() {
   async function fetchMembers() {
     const { data, error } = await supabase
       .from("members")
-      .select("id, member_code, qr_code_value, full_name, photo_url, nickname, phone, email, birth_date, gender, address, membership_status, attendance_status, joined_at, created_at")
+      .select("id, member_code, qr_code_value, full_name, photo_url, nickname, phone, email, birth_date, gender, address, membership_status, attendance_status, joined_at, created_at, updated_at")
       .order("created_at", { ascending: false });
 
     if (error) {
