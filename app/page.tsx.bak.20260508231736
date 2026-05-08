@@ -3754,9 +3754,7 @@ export default function Home() {
             </>
           )}
 
-          {activeTab === "members" && <BwcAdminMemberDatabaseEditor />}
-
-          {false && activeTab === "members" && (
+          {activeTab === "members" && (
             <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
               <Card>
                 <div className="mb-5 flex items-center justify-between">
