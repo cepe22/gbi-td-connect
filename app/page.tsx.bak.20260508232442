@@ -1973,182 +1973,7 @@ export default function Home() {
   }
 
 
-  
-type BwcChartInput = Record<string, any>;
-
-function bwcChartNumber(value: any) {
-  const num = Number(value ?? 0);
-  return Number.isFinite(num) ? num : 0;
-}
-
-function bwcChartLabel(value: any, fallback = "-") {
-  if (!value) return fallback;
-  return String(value);
-}
-
-function bwcShortMonthLabel(value: string) {
-  if (!value) return "-";
-  if (/^\d{4}-\d{2}$/.test(value)) {
-    const [year, month] = value.split("-");
-    return `${month}/${year.slice(-2)}`;
-  }
-  return value;
-}
-
-function bwcShortDateLabel(value: string) {
-  if (!value) return "-";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [year, month, day] = value.split("-");
-    return `${day}/${month}`;
-  }
-  return value;
-}
-
-const BwcWeeklyTrendChart = ({ items }: { items: BwcChartInput[] }) => {
-  const series = (items || []).slice(-12).map((item) => ({
-    label: bwcShortDateLabel(
-      item?.session_date || item?.date || item?.week || item?.title || item?.label || "-"
-    ),
-    value: bwcChartNumber(item?.total_attendance ?? item?.total ?? item?.count ?? item?.value),
-  }));
-
-  if (series.length === 0) {
-    return (
-      <div className="mt-5 rounded-3xl border border-dashed border-orange-200 bg-orange-50 p-6 text-sm font-bold text-slate-500">
-        Belum ada data trend mingguan.
-      </div>
-    );
-  }
-
-  const maxValue = Math.max(...series.map((item) => item.value), 1);
-  const width = 640;
-  const height = 220;
-  const paddingX = 20;
-  const paddingTop = 16;
-  const paddingBottom = 40;
-  const chartHeight = height - paddingTop - paddingBottom;
-  const stepX = series.length > 1 ? (width - paddingX * 2) / (series.length - 1) : 0;
-
-  const points = series
-    .map((item, index) => {
-      const x = paddingX + index * stepX;
-      const y = paddingTop + (1 - item.value / maxValue) * chartHeight;
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  const areaPoints = `${paddingX},${height - paddingBottom} ${points} ${paddingX + (series.length - 1) * stepX},${height - paddingBottom}`;
-
-  return (
-    <div className="mt-5">
-      <div className="overflow-hidden rounded-[28px] border border-orange-100 bg-gradient-to-b from-orange-50/80 to-white">
-        <div className="px-4 pt-4 sm:px-5">
-          <div className="mb-3 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-orange-500">Visual Chart</p>
-              <p className="text-sm text-slate-500">12 sesi terakhir</p>
-            </div>
-            <div className="rounded-2xl bg-white px-3 py-2 text-right shadow-sm ring-1 ring-orange-100">
-              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Peak</p>
-              <p className="text-lg font-black text-slate-950">{maxValue}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="px-2 pb-2 sm:px-3">
-          <svg viewBox={`0 0 ${width} ${height}`} className="h-[240px] w-full">
-            {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => {
-              const y = paddingTop + ratio * chartHeight;
-              const label = Math.round(maxValue * (1 - ratio));
-              return (
-                <g key={index}>
-                  <line x1={paddingX} x2={width - paddingX} y1={y} y2={y} stroke="#FED7AA" strokeDasharray="4 6" />
-                  <text x={width - paddingX} y={y - 4} textAnchor="end" fontSize="11" fill="#94A3B8">
-                    {label}
-                  </text>
-                </g>
-              );
-            })}
-
-            <polyline points={areaPoints} fill="rgba(249,115,22,0.12)" stroke="none" />
-            <polyline points={points} fill="none" stroke="#F97316" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-
-            {series.map((item, index) => {
-              const x = paddingX + index * stepX;
-              const y = paddingTop + (1 - item.value / maxValue) * chartHeight;
-              return (
-                <g key={`${item.label}-${index}`}>
-                  <circle cx={x} cy={y} r="5.5" fill="#ffffff" stroke="#F97316" strokeWidth="3" />
-                  <text x={x} y={y - 12} textAnchor="middle" fontSize="11" fontWeight="700" fill="#0F172A">
-                    {item.value}
-                  </text>
-                  <text x={x} y={height - 14} textAnchor="middle" fontSize="11" fill="#64748B">
-                    {item.label}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const BwcMonthlyAverageChart = ({ items }: { items: BwcChartInput[] }) => {
-  const series = (items || []).slice(-8).map((item) => ({
-    label: bwcShortMonthLabel(item?.month || item?.label || "-"),
-    value: bwcChartNumber(item?.avg_attendance ?? item?.total_checkins ?? item?.total ?? item?.value),
-  }));
-
-  if (series.length === 0) {
-    return (
-      <div className="mt-5 rounded-3xl border border-dashed border-orange-200 bg-orange-50 p-6 text-sm font-bold text-slate-500">
-        Belum ada data monthly average.
-      </div>
-    );
-  }
-
-  const maxValue = Math.max(...series.map((item) => item.value), 1);
-
-  return (
-    <div className="mt-5">
-      <div className="rounded-[28px] border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Bar Chart</p>
-            <p className="text-sm text-slate-500">Rata-rata per bulan</p>
-          </div>
-          <div className="rounded-2xl bg-slate-950 px-3 py-2 text-right">
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-300">Highest</p>
-            <p className="text-lg font-black text-white">{maxValue}</p>
-          </div>
-        </div>
-
-        <div className="flex h-[260px] items-end gap-2 sm:gap-3">
-          {series.map((item) => {
-            const height = Math.max(12, (item.value / maxValue) * 100);
-            return (
-              <div key={item.label} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2">
-                <span className="text-xs font-black text-slate-950">{item.value}</span>
-                <div className="flex h-[180px] w-full items-end justify-center rounded-3xl bg-orange-50 px-1 py-2">
-                  <div
-                    className="w-full rounded-2xl bg-gradient-to-t from-slate-950 via-slate-900 to-orange-500"
-                    style={{ height: `${height}%` }}
-                  />
-                </div>
-                <span className="text-center text-[11px] font-bold text-slate-500">{item.label}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-
-const BwcAnalyticsDashboardFixed = () => {
+  const BwcAnalyticsDashboardFixed = () => {
     const data = bwcAnalytics;
     const weeklyTrend = data?.weekly_trend || [];
     const monthlyTrend = data?.monthly_trend || [];
@@ -3503,13 +3328,46 @@ const BwcAnalyticsDashboardFixed = () => {
                     <Card>
                       <h3 className="text-xl font-black text-slate-950">Trend Kedatangan Mingguan</h3>
                       <p className="mt-1 text-sm text-slate-500">Jumlah check-in per ibadah BWC 1PM.</p>
-                      <BwcWeeklyTrendChart items={bwcAnalytics.weekly_trend || []} />
+
+                      <div className="mt-5 space-y-3">
+                        {(bwcAnalytics.weekly_trend || []).slice(-16).map((item) => (
+                          <div key={item.session_date || item.title}>
+                            <div className="mb-1 flex justify-between text-sm">
+                              <span className="font-bold text-slate-700">{item.session_date}</span>
+                              <span className="font-black text-slate-950">{item.total_attendance}</span>
+                            </div>
+                            <div className="h-3 overflow-hidden rounded-full bg-orange-50">
+                              <div
+                                className="h-full rounded-full bg-orange-500"
+                                style={{ width: `${Math.max(4, Math.min(100, (item.total_attendance || 0)))}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </Card>
 
                     <Card>
                       <h3 className="text-xl font-black text-slate-950">Monthly Average</h3>
                       <p className="mt-1 text-sm text-slate-500">Rata-rata kedatangan per bulan.</p>
-                      <BwcMonthlyAverageChart items={bwcAnalytics.monthly_trend || []} />
+
+                      <div className="mt-5 space-y-4">
+                        {(bwcAnalytics.monthly_trend || []).map((item) => {
+                          const value = item.avg_attendance || item.total_checkins || 0;
+
+                          return (
+                            <div key={item.month}>
+                              <div className="mb-1 flex justify-between text-sm">
+                                <span className="font-bold text-slate-700">{item.month}</span>
+                                <span className="font-black text-slate-950">{value}</span>
+                              </div>
+                              <div className="h-3 overflow-hidden rounded-full bg-orange-50">
+                                <div className="h-full rounded-full bg-slate-950" style={{ width: `${Math.max(4, Math.min(100, value))}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </Card>
                   </div>
 
@@ -4325,13 +4183,46 @@ const BwcAnalyticsDashboardFixed = () => {
                     <Card>
                       <h3 className="text-xl font-black text-slate-950">Trend Kedatangan Mingguan</h3>
                       <p className="mt-1 text-sm text-slate-500">Jumlah check-in per ibadah BWC 1PM.</p>
-                      <BwcWeeklyTrendChart items={bwcAnalytics.weekly_trend || []} />
+
+                      <div className="mt-5 space-y-3">
+                        {(bwcAnalytics.weekly_trend || []).slice(-16).map((item) => (
+                          <div key={item.session_date || item.title}>
+                            <div className="mb-1 flex justify-between text-sm">
+                              <span className="font-bold text-slate-700">{item.session_date}</span>
+                              <span className="font-black text-slate-950">{item.total_attendance}</span>
+                            </div>
+                            <div className="h-3 overflow-hidden rounded-full bg-orange-50">
+                              <div
+                                className="h-full rounded-full bg-orange-500"
+                                style={{ width: `${Math.max(4, Math.min(100, (item.total_attendance || 0)))}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </Card>
 
                     <Card>
                       <h3 className="text-xl font-black text-slate-950">Monthly Average</h3>
                       <p className="mt-1 text-sm text-slate-500">Rata-rata kedatangan per bulan.</p>
-                      <BwcMonthlyAverageChart items={bwcAnalytics.monthly_trend || []} />
+
+                      <div className="mt-5 space-y-4">
+                        {(bwcAnalytics.monthly_trend || []).map((item) => {
+                          const value = item.avg_attendance || item.total_checkins || 0;
+
+                          return (
+                            <div key={item.month}>
+                              <div className="mb-1 flex justify-between text-sm">
+                                <span className="font-bold text-slate-700">{item.month}</span>
+                                <span className="font-black text-slate-950">{value}</span>
+                              </div>
+                              <div className="h-3 overflow-hidden rounded-full bg-orange-50">
+                                <div className="h-full rounded-full bg-slate-950" style={{ width: `${Math.max(4, Math.min(100, value))}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </Card>
                   </div>
 
