@@ -59,12 +59,38 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
   return <div className={`rounded-3xl border border-orange-100 bg-white p-5 shadow-sm ${className}`}>{children}</div>;
 }
 
+function toDateInputValue(value?: string | null) {
+  if (!value) return "";
+  return String(value).slice(0, 10);
+}
+
 function statusTone(status: string): "green" | "orange" | "red" | "blue" | "slate" {
   if (status === "active" || status === "active_member") return "green";
   if (status === "new_member") return "blue";
   if (status === "need_follow_up" || status === "rarely_attend") return "orange";
   if (status === "inactive") return "red";
   return "slate";
+}
+
+function syncProfileFormFromMember(
+  member: Member,
+  setProfileForm: React.Dispatch<React.SetStateAction<{
+    nickname: string;
+    phone: string;
+    email: string;
+    birth_date: string;
+    gender: string;
+    address: string;
+  }>>
+) {
+  setProfileForm({
+    nickname: member.nickname || "",
+    phone: member.phone || "",
+    email: member.email || "",
+    birth_date: toDateInputValue(member.birth_date),
+    gender: member.gender || "unknown",
+    address: member.address || "",
+  });
 }
 
 export default function Home() {
@@ -144,6 +170,27 @@ export default function Home() {
     fetchRoles();
     fetchLinkedMember();
   }, [session]);
+
+  useEffect(() => {
+    if (!linkedMember) return;
+
+    setProfileForm({
+      nickname: linkedMember.nickname || "",
+      phone: linkedMember.phone || "",
+      email: linkedMember.email || "",
+      birth_date: toDateInputValue(linkedMember.birth_date),
+      gender: linkedMember.gender || "unknown",
+      address: linkedMember.address || "",
+    });
+  }, [
+    linkedMember?.id,
+    linkedMember?.nickname,
+    linkedMember?.phone,
+    linkedMember?.email,
+    linkedMember?.birth_date,
+    linkedMember?.gender,
+    linkedMember?.address,
+  ]);
 
   useEffect(() => {
     if (!linkedMember?.qr_code_value) {
@@ -268,7 +315,7 @@ export default function Home() {
 
     const { data, error } = await supabase
       .from("members")
-      .select("id, member_code, qr_code_value, full_name, nickname, phone, email, birth_date, gender, address, membership_status, attendance_status, joined_at, created_at")
+      .select("*")
       .eq("profile_user_id", session.user.id)
       .maybeSingle();
 
@@ -277,17 +324,11 @@ export default function Home() {
       return;
     }
 
-    setLinkedMember(data);
+    const member = data as Member | null;
+    setLinkedMember(member);
 
-    if (data) {
-      setProfileForm({
-        nickname: data.nickname || "",
-        phone: data.phone || "",
-        email: data.email || "",
-        birth_date: data.birth_date || "",
-        gender: data.gender || "unknown",
-        address: data.address || "",
-      });
+    if (member) {
+      syncProfileFormFromMember(member, setProfileForm);
     }
   }
 
@@ -345,13 +386,18 @@ export default function Home() {
     e.preventDefault();
     setMessage("");
 
+    if (!session) {
+      setMessage("Session tidak ditemukan. Silakan login ulang.");
+      return;
+    }
+
     const { data, error } = await supabase.rpc("update_my_member_profile", {
-      input_nickname: profileForm.nickname || null,
-      input_phone: profileForm.phone || null,
-      input_email: profileForm.email || null,
+      input_nickname: profileForm.nickname?.trim() || null,
+      input_phone: profileForm.phone?.trim() || null,
+      input_email: profileForm.email?.trim() || null,
       input_birth_date: profileForm.birth_date || null,
-      input_gender: profileForm.gender,
-      input_address: profileForm.address || null,
+      input_gender: profileForm.gender || null,
+      input_address: profileForm.address?.trim() || null,
     });
 
     if (error) {
@@ -359,15 +405,32 @@ export default function Home() {
       return;
     }
 
+    const { data: refreshedMember, error: refreshError } = await supabase
+      .from("members")
+      .select("*")
+      .eq("profile_user_id", session.user.id)
+      .maybeSingle();
+
+    if (refreshError) {
+      setMessage(refreshError.message);
+      return;
+    }
+
+    const member = refreshedMember as Member | null;
+
+    if (member) {
+      setLinkedMember(member);
+      syncProfileFormFromMember(member, setProfileForm);
+    }
+
     const result = Array.isArray(data) ? data[0] : data;
-    setMessage(result?.message || "Data berhasil diperbarui.");
-    await fetchLinkedMember();
+    setMessage(result?.message || "Data pribadi berhasil diperbarui.");
   }
 
   async function fetchMembers() {
     const { data, error } = await supabase
       .from("members")
-      .select("id, member_code, qr_code_value, full_name, nickname, phone, email, membership_status, attendance_status, joined_at, created_at")
+      .select("id, member_code, qr_code_value, full_name, nickname, phone, email, birth_date, gender, address, membership_status, attendance_status, joined_at, created_at")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -997,7 +1060,16 @@ export default function Home() {
               </Card>
 
               <Card>
-                <h3 className="text-xl font-black text-slate-950">Update Data Pribadi</h3>
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-xl font-black text-slate-950">Update Data Pribadi</h3>
+                  <button
+                    type="button"
+                    onClick={fetchLinkedMember}
+                    className="rounded-xl border border-orange-100 px-3 py-2 text-xs font-black text-slate-600"
+                  >
+                    Refresh
+                  </button>
+                </div>
                 <form onSubmit={updateMyProfile} className="mt-5 space-y-3">
                   <input
                     value={profileForm.nickname}
@@ -1019,12 +1091,12 @@ export default function Home() {
                   />
                   <input
                     type="date"
-                    value={profileForm.birth_date}
+                    value={profileForm.birth_date || toDateInputValue(linkedMember?.birth_date)}
                     onChange={(e) => setProfileForm({ ...profileForm, birth_date: e.target.value })}
                     className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
                   />
                   <select
-                    value={profileForm.gender}
+                    value={profileForm.gender || linkedMember?.gender || "unknown"}
                     onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
                     className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
                   >
@@ -1033,7 +1105,7 @@ export default function Home() {
                     <option value="female">Wanita</option>
                   </select>
                   <textarea
-                    value={profileForm.address}
+                    value={profileForm.address || linkedMember?.address || ""}
                     onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
                     className="min-h-24 w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
                     placeholder="Alamat"
