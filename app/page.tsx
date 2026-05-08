@@ -27,6 +27,13 @@ type Member = {
 type BwcPost = any;
 type BwcComment = any;
 
+type MyCoolInfo = {
+  member_id: string;
+  cool_group_id: string | null;
+  cool_group_name: string | null;
+  total_members: number | null;
+};
+
 type MyMinistry = {
   department_id: string;
   department_name: string;
@@ -103,6 +110,61 @@ type AdminProfileViewerData = {
     session_type: string | null;
     session_date: string;
   }[];
+};
+
+type BwcAnalyticsOverview = {
+  months: number;
+  from_date: string;
+  total_sessions: number;
+  total_checkins: number;
+  avg_attendance: number;
+  last_session_date: string | null;
+  last_session_attendance: number;
+  active_members: number;
+  unique_attendees_30d: number;
+  unique_attendees_90d: number;
+};
+
+type BwcTrendItem = {
+  session_date?: string;
+  title?: string;
+  total_attendance: number;
+  month?: string;
+  total_checkins?: number;
+  avg_attendance?: number;
+  sessions?: number;
+};
+
+type BwcCoolBreakdownItem = {
+  cool_group: string;
+  total_checkins: number;
+  unique_members: number;
+};
+
+type BwcAnalyticsMemberRisk = {
+  member_id: string;
+  full_name: string;
+  member_code: string;
+  phone: string | null;
+  photo_url: string | null;
+  cool_group: string;
+  last_30_days: number;
+  previous_30_days: number;
+  last_90_days: number;
+  last_seen: string | null;
+  days_since_last?: number | null;
+  risk_status?: string;
+  change_count?: number;
+};
+
+type BwcAnalyticsData = {
+  overview: BwcAnalyticsOverview;
+  weekly_trend: BwcTrendItem[];
+  monthly_trend: BwcTrendItem[];
+  cool_breakdown: BwcCoolBreakdownItem[];
+  declining_members: BwcAnalyticsMemberRisk[];
+  at_risk_members: BwcAnalyticsMemberRisk[];
+  recent_sessions: BwcTrendItem[];
 };
 
 type BwcEventComment = {
@@ -242,6 +304,8 @@ export default function Home() {
     service_times: "10.00 WIB, 13.00 WIB",
   });
   const [eventPosting, setEventPosting] = useState(false);
+  const [bwcAnalytics, setBwcAnalytics] = useState<BwcAnalyticsData | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [scannerRunning, setScannerRunning] = useState(false);
   const bwcScannerRef = useRef<any>(null);
   const scanLockRef = useRef(false);
@@ -252,10 +316,11 @@ export default function Home() {
   const [adminProfileLoading, setAdminProfileLoading] = useState(false);
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
   const [myMinistries, setMyMinistries] = useState<MyMinistry[]>([]);
+  const [myCoolInfo, setMyCoolInfo] = useState<MyCoolInfo | null>(null);
   const [departmentOverview, setDepartmentOverview] = useState<DepartmentOverview[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "profileViewer" | "events" | "scanner">("dashboard");
-  const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "scan" | "profile">("home");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "profileViewer" | "analytics" | "events" | "scanner">("dashboard");
+  const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "analytics" | "scan" | "profile">("home");
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -339,7 +404,250 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!session) return;
+    function renderBwcAnalyticsDashboard() {
+    const data = bwcAnalytics;
+    const weeklyTrend = data?.weekly_trend || [];
+    const monthlyTrend = data?.monthly_trend || [];
+    const coolBreakdown = data?.cool_breakdown || [];
+    const decliningMembers = data?.declining_members || [];
+    const atRiskMembers = data?.at_risk_members || [];
+    const recentSessions = data?.recent_sessions || [];
+    const maxWeekly = Math.max(1, ...weeklyTrend.map((item) => item.total_attendance || 0));
+    const maxMonthly = Math.max(1, ...monthlyTrend.map((item) => item.avg_attendance || item.total_checkins || 0));
+    const maxCool = Math.max(1, ...coolBreakdown.map((item) => item.total_checkins || 0));
+
+    if (analyticsLoading && !data) {
+      return (
+        <Card>
+          <p className="text-lg font-black text-slate-950">Loading analytics...</p>
+          <p className="mt-1 text-sm text-slate-500">Sedang mengambil data kehadiran BWC.</p>
+        </Card>
+      );
+    }
+
+    if (!data) {
+      return (
+        <Card>
+          <div className="rounded-3xl border border-dashed border-orange-200 bg-orange-50 p-8 text-center">
+            <p className="text-2xl font-black text-slate-950">Belum ada analytics yang dimuat</p>
+            <p className="mt-2 text-sm text-slate-500">Klik tombol refresh untuk mengambil data absensi terbaru.</p>
+            <button
+              onClick={fetchBwcAnalytics}
+              className="mt-5 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-black text-white"
+            >
+              Load Analytics
+            </button>
+          </div>
+        </Card>
+      );
+    }
+
+    return (
+      <section className="space-y-6">
+        <div className="rounded-[2rem] bg-gradient-to-br from-slate-950 to-slate-800 p-6 text-white shadow-xl">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-300">BWC Attendance Analytics</p>
+              <h2 className="mt-3 text-4xl font-black">Dashboard Kehadiran</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300">
+                Pantau tren kedatangan, performa per COOL, dan member yang mulai jarang hadir dalam 1–3 bulan terakhir.
+              </p>
+            </div>
+            <button
+              onClick={fetchBwcAnalytics}
+              className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950"
+            >
+              {analyticsLoading ? "Refreshing..." : "Refresh Data"}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card>
+            <p className="text-sm text-slate-500">Last Attendance</p>
+            <p className="mt-2 text-4xl font-black text-slate-950">{data.overview.last_session_attendance || 0}</p>
+            <p className="mt-1 text-xs font-bold text-slate-400">{formatAnalyticsDate(data.overview.last_session_date)}</p>
+          </Card>
+          <Card>
+            <p className="text-sm text-slate-500">Average / Ibadah</p>
+            <p className="mt-2 text-4xl font-black text-slate-950">{data.overview.avg_attendance || 0}</p>
+            <p className="mt-1 text-xs font-bold text-slate-400">Last {data.overview.months} months</p>
+          </Card>
+          <Card>
+            <p className="text-sm text-slate-500">Unique 30 Hari</p>
+            <p className="mt-2 text-4xl font-black text-slate-950">{data.overview.unique_attendees_30d || 0}</p>
+            <p className="mt-1 text-xs font-bold text-slate-400">Member hadir 30 hari terakhir</p>
+          </Card>
+          <Card>
+            <p className="text-sm text-slate-500">At Risk</p>
+            <p className="mt-2 text-4xl font-black text-slate-950">{atRiskMembers.length}</p>
+            <p className="mt-1 text-xs font-bold text-slate-400">Perlu follow-up</p>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+          <Card>
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-black text-slate-950">Trend Kedatangan Mingguan</h3>
+                <p className="text-sm text-slate-500">Jumlah check-in per ibadah BWC 1PM.</p>
+              </div>
+            </div>
+
+            <div className="flex h-72 items-end gap-2 overflow-x-auto rounded-3xl bg-orange-50 p-4">
+              {weeklyTrend.slice(-20).map((item) => (
+                <div key={item.session_date} className="flex h-full min-w-[42px] flex-col items-center justify-end gap-2">
+                  <div className="text-xs font-black text-slate-700">{item.total_attendance}</div>
+                  <div
+                    className="w-full rounded-t-2xl bg-orange-500"
+                    style={{ height: `${Math.max(8, (item.total_attendance / maxWeekly) * 210)}px` }}
+                    title={`${formatAnalyticsDate(item.session_date)}: ${item.total_attendance}`}
+                  />
+                  <div className="-rotate-45 whitespace-nowrap text-[10px] font-bold text-slate-400">
+                    {formatAnalyticsDate(item.session_date)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card>
+            <h3 className="text-xl font-black text-slate-950">Monthly Average</h3>
+            <p className="mt-1 text-sm text-slate-500">Rata-rata kedatangan per bulan.</p>
+
+            <div className="mt-5 space-y-4">
+              {monthlyTrend.map((item) => {
+                const value = item.avg_attendance || item.total_checkins || 0;
+
+                return (
+                  <div key={item.month}>
+                    <div className="mb-1 flex justify-between text-sm">
+                      <span className="font-bold text-slate-700">{formatAnalyticsMonth(item.month)}</span>
+                      <span className="font-black text-slate-950">{value}</span>
+                    </div>
+                    <div className="h-3 overflow-hidden rounded-full bg-orange-50">
+                      <div className="h-full rounded-full bg-slate-950" style={{ width: `${Math.max(4, (value / maxMonthly) * 100)}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+          <Card>
+            <h3 className="text-xl font-black text-slate-950">Kehadiran per COOL</h3>
+            <p className="mt-1 text-sm text-slate-500">Total check-in 90 hari terakhir.</p>
+
+            <div className="mt-5 space-y-3">
+              {coolBreakdown.length === 0 ? (
+                <p className="rounded-2xl bg-orange-50 p-4 text-sm font-bold text-slate-500">Belum ada data COOL.</p>
+              ) : (
+                coolBreakdown.map((item) => (
+                  <div key={item.cool_group}>
+                    <div className="mb-1 flex justify-between gap-4 text-sm">
+                      <span className="font-black text-slate-950">{item.cool_group}</span>
+                      <span className="font-bold text-slate-500">{item.total_checkins} check-in · {item.unique_members} member</span>
+                    </div>
+                    <div className="h-3 overflow-hidden rounded-full bg-orange-50">
+                      <div className="h-full rounded-full bg-orange-500" style={{ width: `${Math.max(4, (item.total_checkins / maxCool) * 100)}%` }} />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+
+          <Card>
+            <h3 className="text-xl font-black text-slate-950">Recent Sessions</h3>
+            <p className="mt-1 text-sm text-slate-500">12 ibadah terakhir.</p>
+
+            <div className="mt-5 space-y-2">
+              {recentSessions.map((item) => (
+                <div key={item.session_date} className="flex items-center justify-between rounded-2xl bg-orange-50 px-4 py-3">
+                  <div>
+                    <p className="font-black text-slate-950">{formatAnalyticsDate(item.session_date)}</p>
+                    <p className="text-xs font-bold text-slate-500">{item.title || "Ibadah BWC 1PM"}</p>
+                  </div>
+                  <p className="text-2xl font-black text-orange-600">{item.total_attendance}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <Card>
+            <h3 className="text-xl font-black text-slate-950">Mulai Jarang Hadir</h3>
+            <p className="mt-1 text-sm text-slate-500">Member yang kedatangannya turun dibanding 30 hari sebelumnya.</p>
+
+            <div className="mt-5 space-y-3">
+              {decliningMembers.length === 0 ? (
+                <p className="rounded-2xl bg-green-50 p-4 text-sm font-bold text-green-700">Belum ada penurunan signifikan yang terdeteksi.</p>
+              ) : (
+                decliningMembers.slice(0, 20).map((member) => (
+                  <div key={member.member_id} className="flex items-center gap-3 rounded-2xl border border-orange-100 p-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-orange-50 text-xs font-black text-orange-600">
+                      {member.photo_url ? (
+                        <img src={member.photo_url} alt={member.full_name} className="h-full w-full object-cover" />
+                      ) : (
+                        <span>{getInitials(member.full_name)}</span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-black text-slate-950">{member.full_name}</p>
+                      <p className="text-xs text-slate-500">{member.cool_group} · Last seen {formatAnalyticsDate(member.last_seen)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-red-600">{member.previous_30_days} → {member.last_30_days}</p>
+                      <p className="text-xs font-bold text-slate-400">30 hari</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+
+          <Card>
+            <h3 className="text-xl font-black text-slate-950">Perlu Follow-up</h3>
+            <p className="mt-1 text-sm text-slate-500">Tidak hadir 30–90 hari, sangat jarang, atau belum ada riwayat.</p>
+
+            <div className="mt-5 max-h-[620px] space-y-3 overflow-auto pr-1">
+              {atRiskMembers.length === 0 ? (
+                <p className="rounded-2xl bg-green-50 p-4 text-sm font-bold text-green-700">Tidak ada member at-risk.</p>
+              ) : (
+                atRiskMembers.slice(0, 50).map((member) => (
+                  <div key={member.member_id} className="rounded-2xl border border-orange-100 p-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-orange-50 text-xs font-black text-orange-600">
+                        {member.photo_url ? (
+                          <img src={member.photo_url} alt={member.full_name} className="h-full w-full object-cover" />
+                        ) : (
+                          <span>{getInitials(member.full_name)}</span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-black text-slate-950">{member.full_name}</p>
+                        <p className="text-xs text-slate-500">{member.cool_group} · {member.phone || "-"}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-700">{riskStatusLabel(member.risk_status)}</span>
+                      <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">90d: {member.last_90_days}</span>
+                      <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">Last: {formatAnalyticsDate(member.last_seen)}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+        </div>
+      </section>
+    );
+  }
+
+  if (!session) return;
 
     fetchRoles();
     fetchLinkedMember();
@@ -419,6 +727,12 @@ export default function Home() {
     if (!session || !linkedMember) return;
 
     fetchMyMinistries();
+  }, [session?.user.id, linkedMember?.id]);
+
+  useEffect(() => {
+    if (!session || !linkedMember) return;
+
+    fetchMyCoolInfo();
   }, [session?.user.id, linkedMember?.id]);
 
   useEffect(() => {
@@ -605,6 +919,17 @@ export default function Home() {
     return myMinistries.some((item) => item.department_name?.trim().toLowerCase() === "pendataan");
   }, [myMinistries]);
 
+  useEffect(() => {
+    if (!session) return;
+
+    const shouldFetchAdminAnalytics = isAdmin && activeTab === "analytics";
+    const shouldFetchPendataanAnalytics = canScanBwcAttendance && memberTab === "analytics";
+
+    if (shouldFetchAdminAnalytics || shouldFetchPendataanAnalytics) {
+      fetchBwcAnalytics();
+    }
+  }, [session?.user.id, isAdmin, activeTab, canScanBwcAttendance, memberTab]);
+
   async function fetchBwcAttendanceToday() {
     if (!canScanBwcAttendance) return;
 
@@ -725,6 +1050,66 @@ export default function Home() {
     } catch {
       return "";
     }
+  }
+
+  async function fetchBwcAnalytics() {
+    try {
+      setAnalyticsLoading(true);
+      setMessage("");
+
+      const { data, error } = await supabase.rpc("get_bwc_attendance_analytics", {
+        input_months: 6,
+      });
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      const result = Array.isArray(data) ? data[0] : data;
+      setBwcAnalytics((result || null) as BwcAnalyticsData | null);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }
+
+  function formatAnalyticsDate(value?: string | null) {
+    if (!value) return "-";
+
+    try {
+      return new Intl.DateTimeFormat("id-ID", {
+        day: "2-digit",
+        month: "short",
+      }).format(new Date(`${value}T00:00:00`));
+    } catch {
+      return value || "-";
+    }
+  }
+
+  function formatAnalyticsMonth(value?: string | null) {
+    if (!value) return "-";
+
+    try {
+      return new Intl.DateTimeFormat("id-ID", {
+        month: "short",
+        year: "2-digit",
+      }).format(new Date(`${value}-01T00:00:00`));
+    } catch {
+      return value || "-";
+    }
+  }
+
+  function riskStatusLabel(value?: string) {
+    const labels: Record<string, string> = {
+      belum_ada_riwayat: "Belum ada riwayat",
+      tidak_hadir_90_hari: "Tidak hadir 90+ hari",
+      tidak_hadir_60_hari: "Tidak hadir 60+ hari",
+      tidak_hadir_30_hari: "Tidak hadir 30+ hari",
+      sangat_jarang_90_hari: "Sangat jarang 90 hari",
+      perlu_diperhatikan: "Perlu diperhatikan",
+    };
+
+    return labels[value || ""] || "Perlu dicek";
   }
 
   async function fetchBwcEvents() {
@@ -1135,6 +1520,18 @@ export default function Home() {
 
     const result = Array.isArray(data) ? data[0] : data;
     setMessage(result?.message || "Data pribadi berhasil diperbarui.");
+  }
+
+  async function fetchMyCoolInfo() {
+    const { data, error } = await supabase.rpc("get_my_cool_info");
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    const result = Array.isArray(data) ? data[0] : data;
+    setMyCoolInfo((result || null) as MyCoolInfo | null);
   }
 
   async function fetchMyMinistries() {
@@ -2077,6 +2474,8 @@ export default function Home() {
 
 
 
+          {memberTab === "analytics" && renderBwcAnalyticsDashboard()}
+
           {memberTab === "scan" && (
             <section className="grid gap-6 lg:grid-cols-[420px_1fr]">
               <Card className="h-fit">
@@ -2277,6 +2676,10 @@ export default function Home() {
                     <p className="text-xs font-bold text-slate-500">Status</p>
                     <p className="mt-1"><Badge tone={statusTone(linkedMember.attendance_status)}>{linkedMember.attendance_status}</Badge></p>
                   </div>
+                  <div className="rounded-2xl bg-orange-50 p-4">
+                    <p className="text-xs font-bold text-orange-700">COOL</p>
+                    <p className="mt-1 text-lg font-black text-slate-950">{myCoolInfo?.cool_group_name || "Belum COOL"}</p>
+                  </div>
                 </div>
               </Card>
 
@@ -2388,6 +2791,7 @@ export default function Home() {
               { id: "members", label: "Database Jemaat", icon: "👥" },
               { id: "departments", label: "Departemen", icon: "🧩" },
               { id: "profileViewer", label: "Lihat Profil", icon: "👁️" },
+              { id: "analytics", label: "Analytics", icon: "📊" },
               { id: "events", label: "Broadcast Event", icon: "📣" },
               { id: "scanner", label: "QR Scanner", icon: "📷" },
             ].map((item) => (
@@ -2802,6 +3206,8 @@ export default function Home() {
           )}
 
 
+
+          {activeTab === "analytics" && renderBwcAnalyticsDashboard()}
 
           {activeTab === "events" && (
             <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
