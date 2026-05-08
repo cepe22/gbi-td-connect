@@ -52,6 +52,37 @@ type DepartmentOverview = {
   members: DepartmentMemberItem[];
 };
 
+type BwcAttendanceRecord = {
+  record_id: string;
+  checked_in_at: string;
+  member_id: string;
+  full_name: string;
+  member_code: string;
+  phone: string | null;
+  photo_url: string | null;
+  scanned_by_user_id: string | null;
+};
+
+type BwcAttendanceOverview = {
+  session_id: string;
+  session_title: string;
+  session_date: string;
+  total_attendance: number;
+  records: BwcAttendanceRecord[];
+};
+
+type BwcScanResult = {
+  status: string;
+  message: string;
+  member_id: string | null;
+  member_name: string | null;
+  member_code: string | null;
+  session_id: string | null;
+  session_title: string | null;
+  session_date: string | null;
+  total_attendance: number;
+};
+
 type AttendanceSession = {
   id: string;
   title: string;
@@ -144,6 +175,13 @@ export default function Home() {
   const [newPost, setNewPost] = useState("");
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [posting, setPosting] = useState(false);
+  const [bwcAttendanceOverview, setBwcAttendanceOverview] = useState<BwcAttendanceOverview | null>(null);
+  const [manualScanQr, setManualScanQr] = useState("");
+  const [scanMessage, setScanMessage] = useState("");
+  const [scanBusy, setScanBusy] = useState(false);
+  const [scannerRunning, setScannerRunning] = useState(false);
+  const bwcScannerRef = useRef<any>(null);
+  const scanLockRef = useRef(false);
 
   const [members, setMembers] = useState<Member[]>([]);
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
@@ -151,7 +189,7 @@ export default function Home() {
   const [departmentOverview, setDepartmentOverview] = useState<DepartmentOverview[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "scanner">("dashboard");
-  const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "profile">("home");
+  const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "scan" | "profile">("home");
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -219,6 +257,20 @@ export default function Home() {
     fetchRoles();
     fetchLinkedMember();
   }, [session]);
+
+  useEffect(() => {
+    return () => {
+      if (bwcScannerRef.current) {
+        bwcScannerRef.current.stop?.().catch?.(() => {});
+        bwcScannerRef.current.clear?.().catch?.(() => {});
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (memberTab !== "scan") return;
+    fetchBwcAttendanceToday();
+  }, [memberTab]);
 
   useEffect(() => {
     if (!linkedMember) return;
@@ -454,6 +506,132 @@ export default function Home() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  }
+
+  const canScanBwcAttendance = useMemo(() => {
+    return myMinistries.some((item) => item.department_name?.trim().toLowerCase() === "pendataan");
+  }, [myMinistries]);
+
+  async function fetchBwcAttendanceToday() {
+    if (!canScanBwcAttendance) return;
+
+    const { data, error } = await supabase.rpc("get_bwc_1pm_attendance_today");
+
+    if (error) {
+      setScanMessage(error.message);
+      return;
+    }
+
+    const overview = Array.isArray(data) ? data[0] : data;
+    setBwcAttendanceOverview((overview || null) as BwcAttendanceOverview | null);
+  }
+
+  async function checkinBwcQr(qrValue: string) {
+    const cleanQr = qrValue.trim();
+
+    if (!cleanQr) {
+      setScanMessage("QR/member code kosong.");
+      return;
+    }
+
+    try {
+      setScanBusy(true);
+      setScanMessage("");
+
+      const { data, error } = await supabase.rpc("checkin_bwc_1pm_by_qr", {
+        input_qr_code: cleanQr,
+      });
+
+      if (error) {
+        setScanMessage(error.message);
+        return;
+      }
+
+      const result = (Array.isArray(data) ? data[0] : data) as BwcScanResult | null;
+
+      setScanMessage(result?.message || "Scan selesai.");
+      setManualScanQr("");
+
+      await fetchBwcAttendanceToday();
+    } finally {
+      setScanBusy(false);
+    }
+  }
+
+  async function handleManualBwcScan(e: React.FormEvent) {
+    e.preventDefault();
+    await checkinBwcQr(manualScanQr);
+  }
+
+  async function startBwcQrScanner() {
+    if (scannerRunning) return;
+
+    if (!canScanBwcAttendance) {
+      setScanMessage("Akun ini belum memiliki akses Pendataan.");
+      return;
+    }
+
+    try {
+      setScanMessage("");
+
+      const qrModule: any = await import("html5-qrcode");
+      const Html5Qrcode = qrModule.Html5Qrcode;
+
+      const scanner = new Html5Qrcode("bwc-qr-reader");
+      bwcScannerRef.current = scanner;
+
+      await scanner.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 260, height: 260 },
+          aspectRatio: 1,
+        },
+        async (decodedText: string) => {
+          if (scanLockRef.current) return;
+
+          scanLockRef.current = true;
+          await checkinBwcQr(decodedText);
+
+          window.setTimeout(() => {
+            scanLockRef.current = false;
+          }, 1800);
+        },
+        () => {}
+      );
+
+      setScannerRunning(true);
+      setScanMessage("Scanner aktif. Arahkan kamera ke QR member.");
+    } catch (error: any) {
+      setScanMessage(error?.message || "Gagal membuka kamera scanner.");
+      setScannerRunning(false);
+    }
+  }
+
+  async function stopBwcQrScanner() {
+    try {
+      if (bwcScannerRef.current) {
+        await bwcScannerRef.current.stop?.();
+        await bwcScannerRef.current.clear?.();
+      }
+    } catch {
+      // ignore scanner stop error
+    } finally {
+      bwcScannerRef.current = null;
+      setScannerRunning(false);
+      setScanMessage("Scanner dihentikan.");
+    }
+  }
+
+  function formatAttendanceTime(value: string) {
+    try {
+      return new Intl.DateTimeFormat("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(value));
+    } catch {
+      return "";
+    }
   }
 
   async function fetchBwcForum() {
@@ -1494,6 +1672,133 @@ export default function Home() {
           )}
 
 
+
+          {memberTab === "scan" && (
+            <section className="grid gap-6 lg:grid-cols-[420px_1fr]">
+              <Card className="h-fit">
+                <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">Pendataan</p>
+                <h2 className="mt-3 text-3xl font-black text-slate-950">Scan Ibadah BWC 1PM</h2>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                  Scan QR member saat mereka hadir ibadah. Sistem otomatis mencatat ke absensi Ibadah BWC 1PM hari ini.
+                </p>
+
+                {!canScanBwcAttendance ? (
+                  <div className="mt-5 rounded-3xl border border-orange-100 bg-orange-50 p-5">
+                    <p className="font-black text-slate-950">Akses belum tersedia</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Fitur ini hanya muncul untuk member yang terdaftar melayani di departemen Pendataan.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-5 overflow-hidden rounded-3xl border border-orange-100 bg-slate-950 p-3">
+                      <div id="bwc-qr-reader" className="min-h-[300px] rounded-2xl bg-slate-900 text-white" />
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={startBwcQrScanner}
+                        disabled={scannerRunning}
+                        className="rounded-2xl bg-orange-500 px-4 py-4 text-sm font-black text-white disabled:bg-slate-300"
+                      >
+                        Start Camera
+                      </button>
+                      <button
+                        type="button"
+                        onClick={stopBwcQrScanner}
+                        disabled={!scannerRunning}
+                        className="rounded-2xl bg-slate-950 px-4 py-4 text-sm font-black text-white disabled:bg-slate-300"
+                      >
+                        Stop
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleManualBwcScan} className="mt-4 rounded-3xl bg-orange-50 p-4">
+                      <label className="mb-2 block text-sm font-black text-slate-700">Manual Input QR / Member Code</label>
+                      <div className="flex gap-2">
+                        <input
+                          value={manualScanQr}
+                          onChange={(e) => setManualScanQr(e.target.value)}
+                          className="min-w-0 flex-1 rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm font-bold outline-none focus:border-orange-300"
+                          placeholder="BWC-00139"
+                        />
+                        <button
+                          disabled={scanBusy}
+                          className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:bg-slate-300"
+                        >
+                          Check-in
+                        </button>
+                      </div>
+                    </form>
+
+                    {scanMessage && (
+                      <div className="mt-4 rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm font-black text-orange-700">
+                        {scanMessage}
+                      </div>
+                    )}
+                  </>
+                )}
+              </Card>
+
+              <div className="space-y-5">
+                <Card>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">Live Attendance</p>
+                      <h3 className="mt-2 text-3xl font-black text-slate-950">Ibadah BWC 1PM</h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {bwcAttendanceOverview?.session_date || "Hari ini"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={fetchBwcAttendanceToday}
+                      className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-black text-slate-700"
+                    >
+                      Refresh
+                    </button>
+                  </div>
+
+                  <div className="mt-5 rounded-3xl bg-orange-50 p-5">
+                    <p className="text-sm font-bold text-orange-700">Total Check-in</p>
+                    <p className="mt-1 text-5xl font-black text-slate-950">{bwcAttendanceOverview?.total_attendance || 0}</p>
+                  </div>
+                </Card>
+
+                <Card>
+                  <h3 className="text-xl font-black text-slate-950">Recent Scan</h3>
+                  <div className="mt-4 space-y-3">
+                    {(bwcAttendanceOverview?.records || []).length === 0 ? (
+                      <div className="rounded-2xl bg-orange-50 p-4 text-sm font-bold text-slate-500">
+                        Belum ada yang check-in.
+                      </div>
+                    ) : (
+                      (bwcAttendanceOverview?.records || []).slice(0, 20).map((record) => (
+                        <div key={record.record_id} className="flex items-center gap-3 rounded-2xl border border-orange-100 p-3">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-orange-50 text-xs font-black text-orange-600">
+                            {record.photo_url ? (
+                              <img src={record.photo_url} alt={record.full_name} className="h-full w-full object-cover" />
+                            ) : (
+                              <span>{getInitials(record.full_name)}</span>
+                            )}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-black text-slate-950">{record.full_name}</p>
+                            <p className="text-xs text-slate-500">{record.member_code}</p>
+                          </div>
+
+                          <p className="text-xs font-bold text-slate-400">{formatAttendanceTime(record.checked_in_at)}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </Card>
+              </div>
+            </section>
+          )}
+
+
           {memberTab === "profile" && (
             <section className="grid gap-6 lg:grid-cols-[1fr_420px]">
               <Card>
@@ -1632,7 +1937,7 @@ export default function Home() {
         </div>
 
         <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-orange-100 bg-white/95 p-2 shadow-2xl backdrop-blur md:hidden">
-          <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
+          <div className="mx-auto grid max-w-md gap-1" style={{ gridTemplateColumns: `repeat(${memberNavItems.length}, minmax(0, 1fr))` }}>
             {memberNavItems.map((item) => (
               <button
                 key={item.id}
