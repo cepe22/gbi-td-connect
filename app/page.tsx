@@ -10,6 +10,7 @@ import BwcMyCoolDynamic from "./components/BwcMyCoolDynamic";
 import BwcDepartmentGroupChat from "./components/BwcDepartmentGroupChat";
 import BwcMemberHomeV2 from "./components/BwcMemberHomeV2";
 import BwcMobileBottomNavV2 from "./components/BwcMobileBottomNavV2";
+import BwcMobileRuntimeLayoutFix from "./components/BwcMobileRuntimeLayoutFix";
 
 type Member = {
   id: string;
@@ -2883,6 +2884,7 @@ export default function Home() {
             ))}
           </div>
 
+          <BwcMobileRuntimeLayoutFix />
           <BwcMobileBottomNavV2 activeTab={memberTab as string} onNavigate={(tab) => setMemberTab(tab as any)} />
 
           {memberTab === "home" && <BwcMemberHomeV2 onNavigate={(tab) => setMemberTab(tab as any)} />}

@@ -203,12 +203,12 @@ export default function BwcMemberHomeV2({ onNavigate }: Props) {
             key={item.tab}
             type="button"
             onClick={() => go(item.tab)}
-            data-bwc-shortcut-item="true" className="group flex flex-col items-center gap-2 rounded-[1.35rem] px-2 py-3 transition hover:bg-orange-50"
+            data-bwc-shortcut-item="true" data-bwc-shortcut-item="true" className="group flex flex-col items-center gap-2 rounded-[1.35rem] px-2 py-3 transition hover:bg-orange-50"
           >
-            <span data-bwc-shortcut-icon="true" className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 text-xl font-black text-orange-500 shadow-sm transition group-hover:bg-orange-500 group-hover:text-white">
+            <span data-bwc-shortcut-icon="true" data-bwc-shortcut-icon="true" className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 text-xl font-black text-orange-500 shadow-sm transition group-hover:bg-orange-500 group-hover:text-white">
               {item.icon}
             </span>
-            <span data-bwc-shortcut-label="true" className="text-center text-[11px] font-black leading-tight text-slate-700">
+            <span data-bwc-shortcut-label="true" data-bwc-shortcut-label="true" className="text-center text-[11px] font-black leading-tight text-slate-700">
               {item.label}
             </span>
           </button>

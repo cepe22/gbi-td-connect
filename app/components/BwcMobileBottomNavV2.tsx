@@ -21,7 +21,7 @@ export default function BwcMobileBottomNavV2({ activeTab, onNavigate }: Props) {
 
   const navItems = useMemo(
     () => [
-      { id: "home", label: "Beranda", icon: "⌂" },
+      { id: "home", label: "Home", icon: "⌂" },
       { id: "qr", label: "QR", icon: "▦" },
       { id: "schedule", label: "Acara", icon: "▣" },
       { id: "contacts", label: "Pesan", icon: "☷", badge: unreadCount },
@@ -32,25 +32,18 @@ export default function BwcMobileBottomNavV2({ activeTab, onNavigate }: Props) {
 
   async function loadUnread() {
     const { data, error } = await supabase.rpc("get_unread_direct_message_count");
-
-    if (!error) {
-      setUnreadCount(Number(data || 0));
-    }
+    if (!error) setUnreadCount(Number(data || 0));
   }
 
   useEffect(() => {
     loadUnread();
-
     const interval = window.setInterval(loadUnread, 15000);
     return () => window.clearInterval(interval);
   }, []);
 
   useEffect(() => {
     document.body.classList.add("bwc-has-mobile-bottom-nav");
-
-    return () => {
-      document.body.classList.remove("bwc-has-mobile-bottom-nav");
-    };
+    return () => document.body.classList.remove("bwc-has-mobile-bottom-nav");
   }, []);
 
   return (
