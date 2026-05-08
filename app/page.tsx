@@ -8,6 +8,7 @@ import BwcContactChat from "./components/BwcContactChat";
 import BwcMinistrySchedule from "./components/BwcMinistrySchedule";
 import BwcMyCoolDynamic from "./components/BwcMyCoolDynamic";
 import BwcDepartmentGroupChat from "./components/BwcDepartmentGroupChat";
+import BwcMemberHomeV2 from "./components/BwcMemberHomeV2";
 
 type Member = {
   id: string;
@@ -2881,96 +2882,7 @@ export default function Home() {
             ))}
           </div>
 
-          {memberTab === "home" && (
-            <section className="space-y-6">
-              <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
-                <div className="rounded-[2rem] bg-gradient-to-br from-orange-500 to-amber-400 p-6 text-white shadow-xl shadow-orange-100">
-                  <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-100">Welcome Home</p>
-                  <h2 className="mt-4 text-3xl font-black leading-tight md:text-5xl">
-                    Halo, {linkedMember.nickname || linkedMember.full_name.split(" ")[0]} 👋
-                  </h2>
-                  <p className="mt-4 max-w-xl text-sm leading-relaxed text-orange-50">
-                    Ini adalah portal pribadi kamu untuk QR absensi, data member, jadwal pelayanan, dan informasi COOL.
-                  </p>
-
-                  <div className="mt-6 flex flex-wrap gap-3">
-                    <button
-                      onClick={() => setMemberTab("qr")}
-                      className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-orange-600 shadow-sm"
-                    >
-                      Show My QR
-                    </button>
-                    <button
-                      onClick={() => setMemberTab("profile")}
-                      className="rounded-2xl bg-white/20 px-5 py-3 text-sm font-black text-white backdrop-blur"
-                    >
-                      Lengkapi Data
-                    </button>
-                  </div>
-                </div>
-
-                <Card>
-                  <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">Profile Completion</p>
-                  <div className="mt-4 flex items-end justify-between">
-                    <p className="text-5xl font-black text-slate-950">{profileCompletion}%</p>
-                    <Badge tone={profileCompletion >= 80 ? "green" : "orange"}>
-                      {profileCompletion >= 80 ? "Good" : "Need Update"}
-                    </Badge>
-                  </div>
-                  <div className="mt-4 h-3 overflow-hidden rounded-full bg-orange-50">
-                    <div className="h-full rounded-full bg-orange-500" style={{ width: `${profileCompletion}%` }} />
-                  </div>
-                  <p className="mt-3 text-sm text-slate-500">
-                    Lengkapi data pribadi supaya pendataan BWC lebih akurat.
-                  </p>
-                </Card>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <Card>
-                  <p className="text-sm text-slate-500">Member Code</p>
-                  <p className="mt-2 text-2xl font-black text-slate-950">{linkedMember.member_code}</p>
-                </Card>
-                <Card>
-                  <p className="text-sm text-slate-500">Member Status</p>
-                  <p className="mt-3"><Badge tone={statusTone(linkedMember.attendance_status)}>{linkedMember.attendance_status}</Badge></p>
-                </Card>
-                <Card>
-                  <p className="text-sm text-slate-500">COOL / Community</p>
-                  <p className="mt-2 text-2xl font-black text-slate-950">BWC</p>
-                </Card>
-              </div>
-
-              <div className="grid gap-5 lg:grid-cols-2">
-                <Card>
-                  <h3 className="text-xl font-black text-slate-950">Next Activity</h3>
-                  <div className="mt-4 rounded-3xl bg-orange-50 p-5">
-                    <p className="text-sm font-bold text-orange-700">Ibadah / Event berikutnya</p>
-                    <p className="mt-2 text-2xl font-black text-slate-950">Belum ada jadwal aktif</p>
-                    <p className="mt-2 text-sm text-slate-500">Nanti bagian ini bisa dihubungkan ke event dan attendance sessions.</p>
-                  </div>
-                </Card>
-
-                <Card>
-                  <h3 className="text-xl font-black text-slate-950">Quick Actions</h3>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <button onClick={() => setMemberTab("qr")} className="rounded-2xl bg-orange-500 px-4 py-4 text-sm font-black text-white">
-                      Buka QR
-                    </button>
-                    <button onClick={() => setMemberTab("schedule")} className="rounded-2xl bg-slate-950 px-4 py-4 text-sm font-black text-white">
-                      Cek Pelayanan
-                    </button>
-                    <button onClick={() => setMemberTab("cool")} className="rounded-2xl border border-orange-100 bg-white px-4 py-4 text-sm font-black text-slate-700">
-                      Info COOL
-                    </button>
-                    <button onClick={() => setMemberTab("profile")} className="rounded-2xl border border-orange-100 bg-white px-4 py-4 text-sm font-black text-slate-700">
-                      Update Profile
-                    </button>
-                  </div>
-                </Card>
-              </div>
-            </section>
-          )}
+          {memberTab === "home" && <BwcMemberHomeV2 onNavigate={(tab) => setMemberTab(tab as any)} />}
 
           {memberTab === "qr" && (
             <section className="grid gap-6 lg:grid-cols-[420px_1fr]">
