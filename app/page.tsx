@@ -5,6 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 import QRCode from "qrcode";
 import { supabase } from "../lib/supabase";
 import BwcContactChat from "./components/BwcContactChat";
+import BwcMinistrySchedule from "./components/BwcMinistrySchedule";
 
 type Member = {
   id: string;
@@ -328,8 +329,8 @@ export default function Home() {
   const [myCoolInfo, setMyCoolInfo] = useState<MyCoolInfo | null>(null);
   const [departmentOverview, setDepartmentOverview] = useState<DepartmentOverview[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "profileViewer" | "analytics" | "events" | "scanner" | "contacts">("dashboard");
-  const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "analytics" | "scan" | "profile" | "contacts">("home");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "profileViewer" | "analytics" | "events" | "scanner" | "contacts" | "ministrySchedule">("dashboard");
+  const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "analytics" | "scan" | "profile" | "contacts" | "ministrySchedule">("home");
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -2835,6 +2836,7 @@ export default function Home() {
       { id: "home", label: "Home", icon: "🏠" },
       { id: "qr", label: "QR", icon: "▣" },
       { id: "schedule", label: "Schedule", icon: "🗓️" },
+        { id: "ministrySchedule", label: "Pelayanan", icon: "🙌" },
       { id: "cool", label: "COOL", icon: "🌱" },
       { id: "forum", label: "Forum", icon: "💬" },
         { id: "contacts", label: "Contact", icon: "📩" },
@@ -3594,6 +3596,8 @@ export default function Home() {
           {memberTab === "scan" && renderBwcLiveQrScanner()}
 
 
+          {memberTab === "ministrySchedule" && <BwcMinistrySchedule />}
+
           {memberTab === "contacts" && <BwcContactChat />}
 
           {memberTab === "profile" && (
@@ -3784,6 +3788,7 @@ export default function Home() {
               { id: "dashboard", label: "Dashboard", icon: "📊" },
               { id: "members", label: "Database Jemaat", icon: "👥" },
               { id: "departments", label: "Departemen", icon: "🧩" },
+              { id: "ministrySchedule", label: "Jadwal Pelayanan", icon: "🗓️" },
               { id: "profileViewer", label: "Lihat Profil", icon: "👁️" },
               { id: "analytics", label: "Analytics", icon: "📊" },
               { id: "contacts", label: "Contacts", icon: "💬" },
@@ -4201,6 +4206,8 @@ export default function Home() {
           )}
 
 
+
+          {activeTab === "ministrySchedule" && <BwcMinistrySchedule />}
 
           {activeTab === "contacts" && <BwcContactChat />}
 
