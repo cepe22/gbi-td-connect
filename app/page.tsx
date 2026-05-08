@@ -105,6 +105,35 @@ type AdminProfileViewerData = {
   }[];
 };
 
+type BwcEventComment = {
+  id: string;
+  content: string;
+  created_at: string;
+  member_name: string;
+  member_code: string;
+  photo_url: string | null;
+};
+
+type BwcEventFeedItem = {
+  id: string;
+  title: string;
+  event_date: string;
+  location: string | null;
+  description: string | null;
+  ig_url: string | null;
+  image_url: string | null;
+  service_times: string[];
+  created_at: string;
+  total_likes: number;
+  total_comments: number;
+  total_rsvps: number;
+  liked_by_me: boolean;
+  reminder_by_me: boolean;
+  my_rsvp_service_time: string | null;
+  comments: BwcEventComment[];
+  rsvp_summary: Record<string, number>;
+};
+
 type AttendanceSession = {
   id: string;
   title: string;
@@ -201,6 +230,18 @@ export default function Home() {
   const [manualScanQr, setManualScanQr] = useState("");
   const [scanMessage, setScanMessage] = useState("");
   const [scanBusy, setScanBusy] = useState(false);
+  const [bwcEvents, setBwcEvents] = useState<BwcEventFeedItem[]>([]);
+  const [eventCommentInputs, setEventCommentInputs] = useState<Record<string, string>>({});
+  const [eventForm, setEventForm] = useState({
+    title: "",
+    event_date: "",
+    location: "GBI Tanjung Duren, Lt.3",
+    description: "",
+    ig_url: "",
+    image_url: "",
+    service_times: "10.00 WIB, 13.00 WIB",
+  });
+  const [eventPosting, setEventPosting] = useState(false);
   const [scannerRunning, setScannerRunning] = useState(false);
   const bwcScannerRef = useRef<any>(null);
   const scanLockRef = useRef(false);
@@ -213,7 +254,7 @@ export default function Home() {
   const [myMinistries, setMyMinistries] = useState<MyMinistry[]>([]);
   const [departmentOverview, setDepartmentOverview] = useState<DepartmentOverview[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "profileViewer" | "scanner">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "profileViewer" | "events" | "scanner">("dashboard");
   const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "scan" | "profile">("home");
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(true);
@@ -358,6 +399,12 @@ export default function Home() {
     if (!session || !linkedMember) return;
 
     fetchBwcForum();
+  }, [session?.user.id, linkedMember?.id]);
+
+  useEffect(() => {
+    if (!session || !linkedMember) return;
+
+    fetchBwcEvents();
   }, [session?.user.id, linkedMember?.id]);
 
   useEffect(() => {
@@ -677,6 +724,142 @@ export default function Home() {
       }).format(new Date(value));
     } catch {
       return "";
+    }
+  }
+
+  async function fetchBwcEvents() {
+    const { data, error } = await supabase.rpc("get_bwc_events_feed");
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setBwcEvents((data || []) as BwcEventFeedItem[]);
+  }
+
+  async function createBwcEvent(e: React.FormEvent) {
+    e.preventDefault();
+
+    const serviceTimes = eventForm.service_times
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (!eventForm.title.trim()) {
+      setMessage("Judul event wajib diisi.");
+      return;
+    }
+
+    if (!eventForm.event_date) {
+      setMessage("Tanggal event wajib diisi.");
+      return;
+    }
+
+    try {
+      setEventPosting(true);
+      setMessage("");
+
+      const { error } = await supabase.rpc("admin_create_bwc_event", {
+        input_title: eventForm.title.trim(),
+        input_event_date: eventForm.event_date,
+        input_location: eventForm.location.trim() || null,
+        input_description: eventForm.description.trim() || null,
+        input_ig_url: eventForm.ig_url.trim() || null,
+        input_image_url: eventForm.image_url.trim() || null,
+        input_service_times: serviceTimes.length > 0 ? serviceTimes : ["13.00 WIB"],
+      });
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      setEventForm({
+        title: "",
+        event_date: "",
+        location: "GBI Tanjung Duren, Lt.3",
+        description: "",
+        ig_url: "",
+        image_url: "",
+        service_times: "10.00 WIB, 13.00 WIB",
+      });
+
+      await fetchBwcEvents();
+      setMessage("Event broadcast berhasil dipublish ke forum.");
+    } finally {
+      setEventPosting(false);
+    }
+  }
+
+  async function toggleEventLike(eventId: string) {
+    const { error } = await supabase.rpc("toggle_bwc_event_like", {
+      input_event_id: eventId,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    await fetchBwcEvents();
+  }
+
+  async function toggleEventReminder(eventId: string) {
+    const { error } = await supabase.rpc("toggle_bwc_event_reminder", {
+      input_event_id: eventId,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    await fetchBwcEvents();
+  }
+
+  async function setEventRsvp(eventId: string, serviceTime: string) {
+    const { error } = await supabase.rpc("set_bwc_event_rsvp", {
+      input_event_id: eventId,
+      input_service_time: serviceTime,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    await fetchBwcEvents();
+  }
+
+  async function createEventComment(eventId: string) {
+    const content = (eventCommentInputs[eventId] || "").trim();
+
+    if (!content) return;
+
+    const { error } = await supabase.rpc("create_bwc_event_comment", {
+      input_event_id: eventId,
+      input_content: content,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setEventCommentInputs((prev) => ({ ...prev, [eventId]: "" }));
+    await fetchBwcEvents();
+  }
+
+  function formatEventDate(value: string) {
+    try {
+      return new Intl.DateTimeFormat("id-ID", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      }).format(new Date(value));
+    } catch {
+      return value;
     }
   }
 
@@ -1679,6 +1862,143 @@ export default function Home() {
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-black text-slate-950">Upcoming Events</h3>
+                  <button
+                    onClick={fetchBwcEvents}
+                    className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-black text-slate-700"
+                  >
+                    Refresh
+                  </button>
+                </div>
+
+                {bwcEvents.length === 0 ? (
+                  <Card>
+                    <p className="text-lg font-black text-slate-950">Belum ada event broadcast.</p>
+                    <p className="mt-1 text-sm text-slate-500">Admin bisa publish upcoming event dari dashboard admin.</p>
+                  </Card>
+                ) : (
+                  bwcEvents.map((event) => (
+                    <Card key={event.id}>
+                      <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
+                        <div className="overflow-hidden rounded-3xl bg-orange-50">
+                          {event.image_url ? (
+                            <img src={event.image_url} alt={event.title} className="h-56 w-full object-cover lg:h-full" />
+                          ) : (
+                            <div className="flex h-56 items-center justify-center bg-gradient-to-br from-orange-200 to-amber-100 text-5xl">
+                              📣
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-600">Upcoming Event</p>
+                          <h3 className="mt-2 text-3xl font-black text-slate-950">{event.title}</h3>
+                          <p className="mt-2 text-sm font-bold text-slate-600">{formatEventDate(event.event_date)}</p>
+                          <p className="mt-1 text-sm text-slate-500">{event.location || "GBI Tanjung Duren"}</p>
+
+                          {event.description && (
+                            <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{event.description}</p>
+                          )}
+
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {event.service_times.map((time) => (
+                              <button
+                                key={`${event.id}-${time}`}
+                                onClick={() => setEventRsvp(event.id, time)}
+                                className={`rounded-2xl px-4 py-2 text-sm font-black ${
+                                  event.my_rsvp_service_time === time ? "bg-orange-500 text-white" : "bg-orange-50 text-orange-700"
+                                }`}
+                              >
+                                Hadir {time}
+                              </button>
+                            ))}
+                          </div>
+
+                          {Object.keys(event.rsvp_summary || {}).length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {Object.entries(event.rsvp_summary || {}).map(([time, total]) => (
+                                <span key={time} className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">
+                                  {time}: {total}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="mt-5 flex flex-wrap items-center gap-2">
+                            <button
+                              onClick={() => toggleEventLike(event.id)}
+                              className={`rounded-2xl px-4 py-2 text-sm font-black ${
+                                event.liked_by_me ? "bg-orange-500 text-white" : "bg-slate-950 text-white"
+                              }`}
+                            >
+                              {event.liked_by_me ? "Liked" : "Like"} · {event.total_likes}
+                            </button>
+
+                            <button
+                              onClick={() => toggleEventReminder(event.id)}
+                              className={`rounded-2xl px-4 py-2 text-sm font-black ${
+                                event.reminder_by_me ? "bg-amber-500 text-white" : "bg-orange-50 text-orange-700"
+                              }`}
+                            >
+                              {event.reminder_by_me ? "Reminder On" : "Remind Me"}
+                            </button>
+
+                            {event.ig_url && (
+                              <a
+                                href={event.ig_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-black text-slate-700"
+                              >
+                                Open IG
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 rounded-3xl bg-orange-50 p-4">
+                        <p className="mb-3 text-sm font-black text-slate-950">Comments · {event.total_comments}</p>
+
+                        <div className="space-y-2">
+                          {(event.comments || []).slice(-5).map((comment) => (
+                            <div key={comment.id} className="flex gap-2">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-[10px] font-black text-orange-600">
+                                {comment.photo_url ? (
+                                  <img src={comment.photo_url} alt={comment.member_name} className="h-full w-full object-cover" />
+                                ) : (
+                                  <span>{getInitials(comment.member_name || "BWC")}</span>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1 rounded-2xl bg-white px-3 py-2">
+                                <p className="text-xs font-black text-slate-950">{comment.member_name}</p>
+                                <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-slate-600">{comment.content}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-3 flex gap-2">
+                          <input
+                            value={eventCommentInputs[event.id] || ""}
+                            onChange={(e) => setEventCommentInputs((prev) => ({ ...prev, [event.id]: e.target.value }))}
+                            className="min-w-0 flex-1 rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm outline-none focus:border-orange-300"
+                            placeholder="Tulis komentar..."
+                          />
+                          <button
+                            type="button"
+                            onClick={() => createEventComment(event.id)}
+                            className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white"
+                          >
+                            Send
+                          </button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))
+                )}
+
+                <div className="flex items-center justify-between">
                   <h3 className="text-xl font-black text-slate-950">Latest Threads</h3>
                   <button
                     onClick={fetchBwcForum}
@@ -2068,6 +2388,7 @@ export default function Home() {
               { id: "members", label: "Database Jemaat", icon: "👥" },
               { id: "departments", label: "Departemen", icon: "🧩" },
               { id: "profileViewer", label: "Lihat Profil", icon: "👁️" },
+              { id: "events", label: "Broadcast Event", icon: "📣" },
               { id: "scanner", label: "QR Scanner", icon: "📷" },
             ].map((item) => (
               <button
@@ -2475,6 +2796,206 @@ export default function Home() {
                       Mode ini read-only. Admin hanya melihat data profil, pelayanan, dan riwayat absensi. Tidak ada perubahan data dari halaman ini.
                     </div>
                   </div>
+                )}
+              </div>
+            </div>
+          )}
+
+
+
+          {activeTab === "events" && (
+            <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
+              <Card className="h-fit">
+                <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">Admin Broadcast</p>
+                <h2 className="mt-3 text-2xl font-black text-slate-950">Publish Upcoming Event</h2>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                  Event yang dipublish akan muncul di Forum member. User bisa like, comment, reminder, dan pilih jam ibadah.
+                </p>
+
+                <form onSubmit={createBwcEvent} className="mt-5 space-y-3">
+                  <input
+                    value={eventForm.title}
+                    onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })}
+                    className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="Judul event, contoh: Ibadah Kenaikan Tuhan Yesus"
+                  />
+                  <input
+                    type="date"
+                    value={eventForm.event_date}
+                    onChange={(e) => setEventForm({ ...eventForm, event_date: e.target.value })}
+                    className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                  />
+                  <input
+                    value={eventForm.location}
+                    onChange={(e) => setEventForm({ ...eventForm, location: e.target.value })}
+                    className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="Lokasi"
+                  />
+                  <input
+                    value={eventForm.service_times}
+                    onChange={(e) => setEventForm({ ...eventForm, service_times: e.target.value })}
+                    className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="Jam ibadah, pisahkan koma. Contoh: 10.00 WIB, 13.00 WIB"
+                  />
+                  <input
+                    value={eventForm.ig_url}
+                    onChange={(e) => setEventForm({ ...eventForm, ig_url: e.target.value })}
+                    className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="Link Instagram"
+                  />
+                  <input
+                    value={eventForm.image_url}
+                    onChange={(e) => setEventForm({ ...eventForm, image_url: e.target.value })}
+                    className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="Image URL / poster URL (optional)"
+                  />
+                  <textarea
+                    value={eventForm.description}
+                    onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })}
+                    className="min-h-28 w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="Deskripsi / announcement event"
+                  />
+                  <button
+                    disabled={eventPosting}
+                    className="w-full rounded-2xl bg-orange-500 px-4 py-4 text-sm font-black text-white disabled:bg-slate-300"
+                  >
+                    {eventPosting ? "Publishing..." : "Publish Event"}
+                  </button>
+                </form>
+              </Card>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-black text-slate-950">Preview Event Feed</h3>
+                  <button onClick={fetchBwcEvents} className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-black text-slate-700">
+                    Refresh
+                  </button>
+                </div>
+                {bwcEvents.length === 0 ? (
+                  <Card>
+                    <p className="text-lg font-black text-slate-950">Belum ada event broadcast.</p>
+                    <p className="mt-1 text-sm text-slate-500">Admin bisa publish upcoming event dari dashboard admin.</p>
+                  </Card>
+                ) : (
+                  bwcEvents.map((event) => (
+                    <Card key={event.id}>
+                      <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
+                        <div className="overflow-hidden rounded-3xl bg-orange-50">
+                          {event.image_url ? (
+                            <img src={event.image_url} alt={event.title} className="h-56 w-full object-cover lg:h-full" />
+                          ) : (
+                            <div className="flex h-56 items-center justify-center bg-gradient-to-br from-orange-200 to-amber-100 text-5xl">
+                              📣
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-600">Upcoming Event</p>
+                          <h3 className="mt-2 text-3xl font-black text-slate-950">{event.title}</h3>
+                          <p className="mt-2 text-sm font-bold text-slate-600">{formatEventDate(event.event_date)}</p>
+                          <p className="mt-1 text-sm text-slate-500">{event.location || "GBI Tanjung Duren"}</p>
+
+                          {event.description && (
+                            <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{event.description}</p>
+                          )}
+
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {event.service_times.map((time) => (
+                              <button
+                                key={`${event.id}-${time}`}
+                                onClick={() => setEventRsvp(event.id, time)}
+                                className={`rounded-2xl px-4 py-2 text-sm font-black ${
+                                  event.my_rsvp_service_time === time ? "bg-orange-500 text-white" : "bg-orange-50 text-orange-700"
+                                }`}
+                              >
+                                Hadir {time}
+                              </button>
+                            ))}
+                          </div>
+
+                          {Object.keys(event.rsvp_summary || {}).length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {Object.entries(event.rsvp_summary || {}).map(([time, total]) => (
+                                <span key={time} className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">
+                                  {time}: {total}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="mt-5 flex flex-wrap items-center gap-2">
+                            <button
+                              onClick={() => toggleEventLike(event.id)}
+                              className={`rounded-2xl px-4 py-2 text-sm font-black ${
+                                event.liked_by_me ? "bg-orange-500 text-white" : "bg-slate-950 text-white"
+                              }`}
+                            >
+                              {event.liked_by_me ? "Liked" : "Like"} · {event.total_likes}
+                            </button>
+
+                            <button
+                              onClick={() => toggleEventReminder(event.id)}
+                              className={`rounded-2xl px-4 py-2 text-sm font-black ${
+                                event.reminder_by_me ? "bg-amber-500 text-white" : "bg-orange-50 text-orange-700"
+                              }`}
+                            >
+                              {event.reminder_by_me ? "Reminder On" : "Remind Me"}
+                            </button>
+
+                            {event.ig_url && (
+                              <a
+                                href={event.ig_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-black text-slate-700"
+                              >
+                                Open IG
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 rounded-3xl bg-orange-50 p-4">
+                        <p className="mb-3 text-sm font-black text-slate-950">Comments · {event.total_comments}</p>
+
+                        <div className="space-y-2">
+                          {(event.comments || []).slice(-5).map((comment) => (
+                            <div key={comment.id} className="flex gap-2">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-[10px] font-black text-orange-600">
+                                {comment.photo_url ? (
+                                  <img src={comment.photo_url} alt={comment.member_name} className="h-full w-full object-cover" />
+                                ) : (
+                                  <span>{getInitials(comment.member_name || "BWC")}</span>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1 rounded-2xl bg-white px-3 py-2">
+                                <p className="text-xs font-black text-slate-950">{comment.member_name}</p>
+                                <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-slate-600">{comment.content}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-3 flex gap-2">
+                          <input
+                            value={eventCommentInputs[event.id] || ""}
+                            onChange={(e) => setEventCommentInputs((prev) => ({ ...prev, [event.id]: e.target.value }))}
+                            className="min-w-0 flex-1 rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm outline-none focus:border-orange-300"
+                            placeholder="Tulis komentar..."
+                          />
+                          <button
+                            type="button"
+                            onClick={() => createEventComment(event.id)}
+                            className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white"
+                          >
+                            Send
+                          </button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))
                 )}
               </div>
             </div>
