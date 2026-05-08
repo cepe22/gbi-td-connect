@@ -109,6 +109,7 @@ export default function BwcMemberHomeV2({ onNavigate }: Props) {
     { label: "QR Kehadiran", icon: "▦", tab: "qr" },
     { label: "Jadwal", icon: "▣", tab: "schedule" },
     { label: "COOL", icon: "✦", tab: "cool" },
+    { label: "Absensi COOL", icon: "✓", tab: "coolAttendance" },
     { label: "Pelayanan", icon: "▤", tab: "ministrySchedule" },
     { label: "Forum", icon: "☷", tab: "forum" },
     { label: "Kontak", icon: "☎", tab: "contacts" },

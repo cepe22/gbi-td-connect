@@ -11,6 +11,10 @@ const supabaseKey =
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+type BwcMyCoolDynamicProps = {
+  onNavigate?: (tab: string) => void;
+};
+
 type MyCoolProfile = {
   member_id: string;
   member_code: string;
@@ -21,10 +25,21 @@ type MyCoolProfile = {
   location: string | null;
 };
 
-export default function BwcMyCoolDynamic() {
+export default function BwcMyCoolDynamic({ onNavigate }: BwcMyCoolDynamicProps) {
   const [data, setData] = useState<MyCoolProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
+
+  function goToCoolAttendance() {
+    if (onNavigate) {
+      onNavigate("coolAttendance");
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("bwc:navigate-member-tab", { detail: "coolAttendance" }));
+    }
+  }
 
   async function loadMyCool() {
     try {
@@ -113,6 +128,27 @@ export default function BwcMyCoolDynamic() {
             <p className="text-xs font-black uppercase tracking-[0.15em] text-orange-600">COOL</p>
             <p className="mt-2 font-black text-slate-950">{coolName}</p>
           </div>
+        </div>
+      </div>
+
+
+      <div className="rounded-[1.5rem] border border-orange-100 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-orange-600">Gembala COOL</p>
+            <h3 className="mt-2 text-xl font-black text-slate-950">Input Absensi COOL Mingguan</h3>
+            <p className="mt-1 text-sm leading-relaxed text-slate-500">
+              Khusus gembala COOL yang sudah di-assign. Catat kehadiran anak COOL dan jiwa baru setiap minggu.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={goToCoolAttendance}
+            className="rounded-2xl bg-orange-500 px-5 py-3 text-sm font-black text-white"
+          >
+            Buka Absensi COOL
+          </button>
         </div>
       </div>
 
