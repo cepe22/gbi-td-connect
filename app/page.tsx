@@ -23,6 +23,9 @@ type Member = {
   created_at: string;
 };
 
+type BwcPost = any;
+type BwcComment = any;
+
 type AttendanceSession = {
   id: string;
   title: string;
@@ -109,11 +112,16 @@ export default function Home() {
   const [linkedMember, setLinkedMember] = useState<Member | null>(null);
   const [memberQrDataUrl, setMemberQrDataUrl] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [bwcPosts, setBwcPosts] = useState<BwcPost[]>([]);
+  const [bwcComments, setBwcComments] = useState<Record<string, BwcComment[]>>({});
+  const [newPost, setNewPost] = useState("");
+  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
+  const [posting, setPosting] = useState(false);
 
   const [members, setMembers] = useState<Member[]>([]);
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
   const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "scanner">("dashboard");
-  const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "profile">("home");
+  const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "profile">("home");
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -217,6 +225,12 @@ export default function Home() {
       .then(setMemberQrDataUrl)
       .catch(() => setMemberQrDataUrl(""));
   }, [linkedMember?.qr_code_value]);
+
+  useEffect(() => {
+    if (!session || !linkedMember) return;
+
+    fetchBwcForum();
+  }, [session?.user.id, linkedMember?.id]);
 
   useEffect(() => {
     if (!session) return;
@@ -339,7 +353,14 @@ export default function Home() {
     setLinkedMember(member);
 
     if (member) {
-      syncProfileFormFromMember(member, setProfileForm);
+      setProfileForm({
+        nickname: member.nickname || "",
+        phone: member.phone || "",
+        email: member.email || "",
+        birth_date: toDateInputValue(member.birth_date),
+        gender: member.gender || "unknown",
+        address: member.address || "",
+      });
     }
   }
 
@@ -391,6 +412,158 @@ export default function Home() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  }
+
+  async function fetchBwcForum() {
+    const { data: posts, error: postsError } = await supabase
+      .from("bwc_posts")
+      .select(`
+        id,
+        content,
+        created_at,
+        author_user_id,
+        author_member_id,
+        members:author_member_id (
+          full_name,
+          member_code,
+          photo_url
+        )
+      `)
+      .eq("is_deleted", false)
+      .order("created_at", { ascending: false })
+      .limit(30);
+
+    if (postsError) {
+      setMessage(postsError.message);
+      return;
+    }
+
+    setBwcPosts(posts || []);
+
+    const postIds = (posts || []).map((post: any) => post.id);
+    if (postIds.length === 0) {
+      setBwcComments({});
+      return;
+    }
+
+    const { data: comments, error: commentsError } = await supabase
+      .from("bwc_post_comments")
+      .select(`
+        id,
+        post_id,
+        content,
+        created_at,
+        author_user_id,
+        author_member_id,
+        members:author_member_id (
+          full_name,
+          member_code,
+          photo_url
+        )
+      `)
+      .in("post_id", postIds)
+      .eq("is_deleted", false)
+      .order("created_at", { ascending: true });
+
+    if (commentsError) {
+      setMessage(commentsError.message);
+      return;
+    }
+
+    const grouped: Record<string, BwcComment[]> = {};
+    (comments || []).forEach((comment: any) => {
+      if (!grouped[comment.post_id]) grouped[comment.post_id] = [];
+      grouped[comment.post_id].push(comment);
+    });
+
+    setBwcComments(grouped);
+  }
+
+  async function createBwcPost(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!session || !linkedMember) {
+      setMessage("Kamu perlu login dan claim profile dulu.");
+      return;
+    }
+
+    const content = newPost.trim();
+
+    if (!content) {
+      setMessage("Isi post tidak boleh kosong.");
+      return;
+    }
+
+    if (content.length > 1000) {
+      setMessage("Post maksimal 1000 karakter.");
+      return;
+    }
+
+    try {
+      setPosting(true);
+      setMessage("");
+
+      const { error } = await supabase.from("bwc_posts").insert({
+        author_user_id: session.user.id,
+        author_member_id: linkedMember.id,
+        content,
+      });
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      setNewPost("");
+      await fetchBwcForum();
+      setMemberTab("forum");
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  async function createBwcComment(postId: string) {
+    if (!session || !linkedMember) {
+      setMessage("Kamu perlu login dan claim profile dulu.");
+      return;
+    }
+
+    const content = (commentInputs[postId] || "").trim();
+
+    if (!content) return;
+
+    if (content.length > 500) {
+      setMessage("Komentar maksimal 500 karakter.");
+      return;
+    }
+
+    const { error } = await supabase.from("bwc_post_comments").insert({
+      post_id: postId,
+      author_user_id: session.user.id,
+      author_member_id: linkedMember.id,
+      content,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setCommentInputs((prev) => ({ ...prev, [postId]: "" }));
+    await fetchBwcForum();
+  }
+
+  function formatPostDate(value: string) {
+    try {
+      return new Intl.DateTimeFormat("id-ID", {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(value));
+    } catch {
+      return "";
+    }
   }
 
   async function uploadMyProfilePicture(e: React.ChangeEvent<HTMLInputElement>) {
@@ -459,10 +632,12 @@ export default function Home() {
         return;
       }
 
+      setLinkedMember((prev) => prev ? { ...prev, photo_url: photoUrl } : prev);
+
       const result = Array.isArray(data) ? data[0] : data;
+      setMessage(result?.message || "Foto profile berhasil diperbarui.");
 
       await fetchLinkedMember();
-      setMessage(result?.message || "Foto profile berhasil diperbarui.");
     } finally {
       setUploadingPhoto(false);
     }
@@ -859,6 +1034,7 @@ export default function Home() {
       { id: "qr", label: "QR", icon: "▣" },
       { id: "schedule", label: "Schedule", icon: "🗓️" },
       { id: "cool", label: "COOL", icon: "🌱" },
+      { id: "forum", label: "Forum", icon: "💬" },
       { id: "profile", label: "Profile", icon: "👤" },
     ] as const;
 
@@ -1119,6 +1295,114 @@ export default function Home() {
             </section>
           )}
 
+
+          {memberTab === "forum" && (
+            <section className="grid gap-6 lg:grid-cols-[420px_1fr]">
+              <Card className="h-fit">
+                <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-600">BWC Forum</p>
+                <h2 className="mt-3 text-3xl font-black text-slate-950">Share & Connect</h2>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                  Ruang sederhana untuk anak-anak BWC saling update, sharing, dan berinteraksi.
+                </p>
+
+                <form onSubmit={createBwcPost} className="mt-5 space-y-3">
+                  <textarea
+                    value={newPost}
+                    onChange={(e) => setNewPost(e.target.value)}
+                    className="min-h-32 w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
+                    placeholder="Tulis sesuatu untuk BWC..."
+                  />
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span>{newPost.length}/1000</span>
+                    <button
+                      disabled={posting}
+                      className="rounded-2xl bg-orange-500 px-5 py-3 text-sm font-black text-white disabled:bg-slate-300"
+                    >
+                      {posting ? "Posting..." : "Post"}
+                    </button>
+                  </div>
+                </form>
+              </Card>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-black text-slate-950">Latest Threads</h3>
+                  <button
+                    onClick={fetchBwcForum}
+                    className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-black text-slate-700"
+                  >
+                    Refresh
+                  </button>
+                </div>
+
+                {bwcPosts.length === 0 ? (
+                  <Card>
+                    <p className="text-lg font-black text-slate-950">Belum ada post.</p>
+                    <p className="mt-1 text-sm text-slate-500">Jadilah yang pertama share di BWC Forum.</p>
+                  </Card>
+                ) : (
+                  bwcPosts.map((post) => (
+                    <Card key={post.id}>
+                      <div className="flex gap-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-orange-50 text-sm font-black text-orange-600">
+                          {post.members?.photo_url ? (
+                            <img src={post.members.photo_url} alt={post.members.full_name} className="h-full w-full object-cover" />
+                          ) : (
+                            <span>{getInitials(post.members?.full_name || "BWC")}</span>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-black text-slate-950">{post.members?.full_name || "BWC Member"}</p>
+                            <span className="text-xs font-bold text-slate-400">• {formatPostDate(post.created_at)}</span>
+                          </div>
+
+                          <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{post.content}</p>
+
+                          <div className="mt-4 space-y-3 rounded-2xl bg-orange-50 p-3">
+                            {(bwcComments[post.id] || []).map((comment) => (
+                              <div key={comment.id} className="flex gap-2">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-[10px] font-black text-orange-600">
+                                  {comment.members?.photo_url ? (
+                                    <img src={comment.members.photo_url} alt={comment.members.full_name} className="h-full w-full object-cover" />
+                                  ) : (
+                                    <span>{getInitials(comment.members?.full_name || "BWC")}</span>
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1 rounded-2xl bg-white px-3 py-2">
+                                  <p className="text-xs font-black text-slate-950">{comment.members?.full_name || "BWC Member"}</p>
+                                  <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-slate-600">{comment.content}</p>
+                                </div>
+                              </div>
+                            ))}
+
+                            <div className="flex gap-2">
+                              <input
+                                value={commentInputs[post.id] || ""}
+                                onChange={(e) => setCommentInputs((prev) => ({ ...prev, [post.id]: e.target.value }))}
+                                className="flex-1 rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm outline-none focus:border-orange-300"
+                                placeholder="Tulis komentar..."
+                              />
+                              <button
+                                type="button"
+                                onClick={() => createBwcComment(post.id)}
+                                className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white"
+                              >
+                                Send
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </section>
+          )}
+
+
           {memberTab === "profile" && (
             <section className="grid gap-6 lg:grid-cols-[1fr_420px]">
               <Card>
@@ -1129,7 +1413,7 @@ export default function Home() {
                   <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-white text-2xl font-black text-orange-600 shadow-sm">
                     {linkedMember.photo_url ? (
                       <img
-                        src={linkedMember.photo_url}
+                        src={`${linkedMember.photo_url}?v=${linkedMember.updated_at || Date.now()}`}
                         alt={linkedMember.full_name}
                         className="h-full w-full object-cover"
                       />
@@ -1156,6 +1440,13 @@ export default function Home() {
                       />
                       {uploadingPhoto ? "Uploading..." : linkedMember.photo_url ? "Ganti Foto" : "Tambah Foto"}
                     </label>
+                    <button
+                      type="button"
+                      onClick={fetchLinkedMember}
+                      className="ml-2 mt-4 inline-flex rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm font-black text-slate-700"
+                    >
+                      Refresh Foto
+                    </button>
                   </div>
                 </div>
 
