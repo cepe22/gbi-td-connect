@@ -12,6 +12,7 @@ import BwcMemberHomeV2 from "./components/BwcMemberHomeV2";
 import BwcMobileBottomNavV2 from "./components/BwcMobileBottomNavV2";
 import BwcMobileRuntimeLayoutFix from "./components/BwcMobileRuntimeLayoutFix";
 import BwcCoolAttendanceManager from "./components/BwcCoolAttendanceManager";
+import BwcAdminMemberDatabaseEditor from "./components/BwcAdminMemberDatabaseEditor";
 
 type Member = {
   id: string;
@@ -335,8 +336,8 @@ export default function Home() {
   const [myCoolInfo, setMyCoolInfo] = useState<MyCoolInfo | null>(null);
   const [departmentOverview, setDepartmentOverview] = useState<DepartmentOverview[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "profileViewer" | "analytics" | "events" | "scanner" | "contacts" | "ministrySchedule" | "groupChat" | "coolAttendance">("dashboard");
-  const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "analytics" | "scan" | "profile" | "contacts" | "ministrySchedule" | "groupChat" | "coolAttendance">("home");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "departments" | "profileViewer" | "analytics" | "events" | "scanner" | "contacts" | "ministrySchedule" | "groupChat" | "coolAttendance" | "memberDatabase">("dashboard");
+  const [memberTab, setMemberTab] = useState<"home" | "qr" | "schedule" | "cool" | "forum" | "analytics" | "scan" | "profile" | "contacts" | "ministrySchedule" | "groupChat" | "coolAttendance" | "memberDatabase">("home");
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -3710,6 +3711,8 @@ export default function Home() {
               {message}
             </div>
           )}
+
+          {activeTab === "memberDatabase" && <BwcAdminMemberDatabaseEditor />}
 
           {activeTab === "dashboard" && (
             <>
