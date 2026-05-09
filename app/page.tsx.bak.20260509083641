@@ -586,7 +586,7 @@ export default function Home() {
                 <div key={item.session_date} className="flex items-center justify-between rounded-2xl bg-orange-50 px-4 py-3">
                   <div>
                     <p className="font-black text-slate-950">{formatAnalyticsDate(item.session_date)}</p>
-                    <p className="text-xs font-bold text-slate-500">{item.title || "Ibadah BWC"}</p>
+                    <p className="text-xs font-bold text-slate-500">{item.title || "Ibadah BWC 1PM"}</p>
                   </div>
                   <p className="text-2xl font-black text-orange-600">{item.total_attendance}</p>
                 </div>
@@ -826,7 +826,7 @@ export default function Home() {
                 <div key={item.session_date} className="flex items-center justify-between rounded-2xl bg-orange-50 px-4 py-3">
                   <div>
                     <p className="font-black text-slate-950">{formatAnalyticsDate(item.session_date)}</p>
-                    <p className="text-xs font-bold text-slate-500">{item.title || "Ibadah BWC"}</p>
+                    <p className="text-xs font-bold text-slate-500">{item.title || "Ibadah BWC 1PM"}</p>
                   </div>
                   <p className="text-2xl font-black text-orange-600">{item.total_attendance}</p>
                 </div>
@@ -2349,7 +2349,7 @@ const BwcAnalyticsDashboardFixed = () => {
                 <div key={item.session_date} className="flex items-center justify-between rounded-2xl bg-orange-50 px-4 py-3">
                   <div>
                     <p className="font-black text-slate-950">{formatDate(item.session_date)}</p>
-                    <p className="text-xs font-bold text-slate-500">{item.title || "Ibadah BWC"}</p>
+                    <p className="text-xs font-bold text-slate-500">{item.title || "Ibadah BWC 1PM"}</p>
                   </div>
                   <p className="text-2xl font-black text-orange-600">{item.total_attendance}</p>
                 </div>
@@ -3546,7 +3546,7 @@ const BwcAnalyticsDashboardFixed = () => {
                           <div key={item.session_date} className="flex items-center justify-between rounded-2xl bg-orange-50 px-4 py-3">
                             <div>
                               <p className="font-black text-slate-950">{item.session_date}</p>
-                              <p className="text-xs font-bold text-slate-500">{item.title || "Ibadah BWC"}</p>
+                              <p className="text-xs font-bold text-slate-500">{item.title || "Ibadah BWC 1PM"}</p>
                             </div>
                             <p className="text-2xl font-black text-orange-600">{item.total_attendance}</p>
                           </div>
@@ -4369,7 +4369,7 @@ const BwcAnalyticsDashboardFixed = () => {
                           <div key={item.session_date} className="flex items-center justify-between rounded-2xl bg-orange-50 px-4 py-3">
                             <div>
                               <p className="font-black text-slate-950">{item.session_date}</p>
-                              <p className="text-xs font-bold text-slate-500">{item.title || "Ibadah BWC"}</p>
+                              <p className="text-xs font-bold text-slate-500">{item.title || "Ibadah BWC 1PM"}</p>
                             </div>
                             <p className="text-2xl font-black text-orange-600">{item.total_attendance}</p>
                           </div>

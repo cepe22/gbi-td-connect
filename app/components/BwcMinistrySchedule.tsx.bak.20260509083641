@@ -133,7 +133,7 @@ export default function BwcMinistrySchedule() {
   const [departmentSchedule, setDepartmentSchedule] = useState<ScheduleAssignment[]>([]);
   const [myAssignments, setMyAssignments] = useState<ScheduleAssignment[]>([]);
   const [serviceDate, setServiceDate] = useState("");
-  const [serviceTitle, setServiceTitle] = useState("Ibadah BWC");
+  const [serviceTitle, setServiceTitle] = useState("Ibadah BWC 1PM");
   const [slotName, setSlotName] = useState("");
   const [assignedMemberId, setAssignedMemberId] = useState("");
   const [responseNote, setResponseNote] = useState("");
@@ -493,7 +493,7 @@ export default function BwcMinistrySchedule() {
                     value={serviceTitle}
                     onChange={(event) => setServiceTitle(event.target.value)}
                     className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-sm outline-none focus:border-orange-300"
-                    placeholder="Ibadah BWC"
+                    placeholder="Ibadah BWC 1PM"
                   />
                 </div>
 
